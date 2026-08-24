@@ -1,86 +1,262 @@
 <script setup>
 import { computed } from 'vue'
-import { Ic } from '../../lib/icons'
 import { WEEKDAYS } from '../../lib/languages'
 import { store } from '../../lib/store'
 
 const data = computed(() => store.state.dashboard)
+const user = computed(() => store.state.user)
 
-// Bars are drawn relative to the busiest day, with a floor so an empty day is
-// still a visible stub rather than nothing at all.
+// Bars are relative to the busiest day; an empty day keeps a visible stub.
 const peak = computed(() => Math.max(...(data.value?.week ?? [0]), 1))
+const barHeight = (value) => `${Math.max((value / peak.value) * 53, 5)}px`
 
-function barHeight(value) {
-  return `${Math.max((value / peak.value) * 78, 5)}px`
-}
-
-/** Monday is index 0 in the API response; highlight whichever day today is. */
 const todayIndex = computed(() => (new Date().getDay() + 6) % 7)
+
+// The last four days of the streak, newest on the right.
+const streakBars = computed(() => (data.value?.week ?? []).slice(-4))
+
+const goalDone = computed(() => Math.min(data.value?.today ?? 0, user.value?.daily_goal ?? 0))
+const goalPercent = computed(() => {
+  const goal = user.value?.daily_goal || 1
+  return Math.min(Math.round((goalDone.value / goal) * 100), 100)
+})
 </script>
 
 <template>
-  <div v-if="data">
-    <div class="hello">Salom, {{ data.name }}! 👋</div>
-
-    <div class="streak">
-      <div class="flame">🔥</div>
-      <div>
-        <div class="sbig">{{ data.streak_days }} kun</div>
-        <div class="ssub">
-          {{ data.streak_days > 0 ? "ketma-ket yodlayapsiz — zoʼr sur'at!" : 'bugun boshlang — seriya shu yerdan boshlanadi' }}
-        </div>
+  <div v-if="data" class="scroll">
+    <!-- Streak -->
+    <div class="panel panel-row" style="padding: 13px 16px">
+      <span class="flame">🔥</span>
+      <div style="flex: 1">
+        <div class="num" style="font-size: 20px">{{ data.streak_days }} kun seriya</div>
+        <div class="sub-line">rekordingiz — {{ user.best_streak }} kun 🏅</div>
+      </div>
+      <div class="streak-bars">
+        <span
+          v-for="(value, index) in streakBars"
+          :key="index"
+          :style="{
+            height: `${14 + index * 6}px`,
+            background: value > 0 ? 'var(--green)' : 'var(--green-bar)',
+          }"
+        ></span>
       </div>
     </div>
 
-    <div class="dcard">
-      <div class="drow"><b>Bu hafta</b><span>{{ data.week_total }} soʼz</span></div>
-      <div class="wk">
-        <div class="wk-bars">
-          <div v-for="(value, index) in data.week" :key="index" class="col">
-            <span class="v">{{ value }}</span>
-            <div class="bar" :class="{ today: index === todayIndex }" :style="{ height: barHeight(value) }"></div>
+    <!-- Daily goal and coins -->
+    <div style="display: flex; gap: 12px">
+      <div class="tile green">
+        <span class="emoji">🎯</span>
+        <div class="value">{{ goalDone }} / {{ user.daily_goal }}</div>
+        <div class="label">bugungi maqsad</div>
+        <div class="meter"><i :style="{ width: goalPercent + '%' }"></i></div>
+      </div>
+
+      <div class="tile gold">
+        <span class="emoji">⭐</span>
+        <div class="value">{{ data.coins ?? 0 }}</div>
+        <div class="label" style="color: var(--gold-muted)">tanga toʼplandi</div>
+        <div class="hint-gold">har mashq +1 · duel +10</div>
+      </div>
+    </div>
+
+    <!-- This week -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>Bu hafta</span>
+        <span class="num accent">{{ data.week_total }} soʼz</span>
+      </div>
+      <div class="week-bars">
+        <div
+          v-for="(value, index) in data.week"
+          :key="index"
+          :style="{
+            height: barHeight(value),
+            background: index === todayIndex ? 'var(--green)' : value > 0 ? 'var(--green-bar)' : 'var(--line-3)',
+          }"
+        ></div>
+      </div>
+      <div class="week-days">
+        <span v-for="day in WEEKDAYS" :key="day">{{ day }}</span>
+      </div>
+    </div>
+
+    <!-- Totals -->
+    <div style="display: flex; gap: 12px">
+      <div class="panel stat">
+        <span class="stat-emoji">📚</span>
+        <div class="num" style="font-size: 20px">{{ data.words_learned }}</div>
+        <div class="sub-line">Jami yodlangan</div>
+      </div>
+      <div class="panel stat">
+        <span class="stat-emoji">🗓</span>
+        <div class="num" style="font-size: 20px">{{ data.month_total }}</div>
+        <div class="sub-line">Bu oy</div>
+      </div>
+    </div>
+
+    <!-- Duels -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>Duel natijalari</span>
+        <span class="num accent">{{ data.duel.win_rate }}% gʼalaba</span>
+      </div>
+      <div style="display: flex; gap: 11px">
+        <div class="duel-half win">
+          <span class="duel-emoji">🏆</span>
+          <div>
+            <div class="num" style="font-size: 20px; color: var(--green-dark)">{{ data.duel.wins }}</div>
+            <div class="duel-label">Gʼalaba</div>
           </div>
         </div>
-        <div class="wk-days"><span v-for="day in WEEKDAYS" :key="day">{{ day }}</span></div>
-      </div>
-    </div>
-
-    <div class="dgrid">
-      <div class="stat">
-        <div class="ic-lg" v-html="Ic.book"></div>
-        <div class="big">{{ data.words_learned }}</div>
-        <div class="lbl">Jami yodlangan soʼz</div>
-      </div>
-      <div class="stat">
-        <div class="ic-lg" style="background: #eaf3fd; color: var(--blue)" v-html="Ic.cal"></div>
-        <div class="big">{{ data.month_total }}</div>
-        <div class="lbl">Bu oy</div>
-      </div>
-    </div>
-
-    <div v-if="data.week_total > 0" class="dcard proj">
-      <div class="ic-lg" style="background: #eaf3fd; color: var(--blue)" v-html="Ic.trend"></div>
-      <div>
-        <div class="sbig" style="color: var(--blue-d)">≈ {{ data.projection_90d }} soʼz</div>
-        <div class="ssub">shu sur'atda 3 oydan keyin yodlab boʼlasiz</div>
-      </div>
-    </div>
-
-    <div class="dcard">
-      <div class="drow">
-        <b>Doʼstlar bilan duel</b>
-        <span>{{ data.duel.win_rate }}% gʼalaba</span>
-      </div>
-      <div class="duelrow">
-        <div class="duelhalf win">
-          <span v-html="Ic.trophy"></span>
-          <div><b>{{ data.duel.wins }}</b><span>gʼalaba</span></div>
+        <div class="duel-half loss">
+          <span class="duel-emoji">🚩</span>
+          <div>
+            <div class="num" style="font-size: 20px; color: var(--red-dark)">{{ data.duel.losses }}</div>
+            <div class="duel-label">Magʼlubiyat</div>
+          </div>
         </div>
-        <div class="duelhalf loss">
-          <span v-html="Ic.flag"></span>
-          <div><b>{{ data.duel.losses }}</b><span>magʼlubiyat</span></div>
-        </div>
+      </div>
+      <div class="duel-meter">
+        <div :style="{ width: data.duel.win_rate + '%' }"></div>
+        <div style="flex: 1"></div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.flame {
+  font-size: 38px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 6px rgba(199, 84, 26, .35));
+}
+
+.sub-line {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.streak-bars {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.streak-bars span {
+  width: 7px;
+  border-radius: var(--r-pill);
+  display: block;
+}
+
+.hint-gold {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--gold-muted);
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.accent {
+  font-size: 14px;
+  color: var(--green);
+}
+
+.week-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 54px;
+  border-bottom: 1px solid var(--wash);
+}
+
+.week-bars > div {
+  flex: 1;
+  border-radius: 6px 6px 0 0;
+}
+
+.week-days {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.week-days span {
+  flex: 1;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.stat {
+  flex: 1;
+  padding: 13px 15px;
+}
+
+.stat-emoji {
+  font-size: 22px;
+  line-height: 1;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.duel-half {
+  flex: 1;
+  border-radius: 14px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.duel-half.win {
+  background: var(--green-soft);
+  border: 1px solid var(--green-pale);
+}
+
+.duel-half.loss {
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
+}
+
+.duel-emoji {
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .15));
+}
+
+.duel-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.duel-meter {
+  display: flex;
+  height: 6px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  margin-top: 11px;
+  gap: 2px;
+}
+
+.duel-meter > div:first-child {
+  background: var(--green);
+  border-radius: var(--r-pill);
+}
+
+.duel-meter > div:last-child {
+  background: #F1C0C3;
+  border-radius: var(--r-pill);
+}
+</style>

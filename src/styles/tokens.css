@@ -1,0 +1,385 @@
+/*
+ * Lexible v2 design tokens.
+ *
+ * Taken from the approved artboards (design/screens-student). The previous
+ * language was chunky and playful — Baloo 2, thick 3px button shadows, 34px
+ * radii. This one is quieter: two weights of green, hairline borders, flatter
+ * corners, and Sora only for numbers and headings.
+ */
+
+:root {
+    /* Text */
+    --ink: #16201A;
+    --muted: #66736B;
+    --faint: #98A49C;
+
+    /* Green — the single accent */
+    --green: #17A45C;
+    --green-dark: #128A4D;
+    --green-bright: #2BC876;
+    --green-deep: #0C7A3F;
+    --green-soft: #E9F7EF;
+    --green-pale: #CDEBDA;
+    --green-bar: #DCE9DF;
+
+    /* Gold — coins and premium */
+    --gold: #B7841F;
+    --gold-light: #F8DE83;
+    --gold-mid: #EEC64A;
+    --gold-deep: #C9A230;
+    --gold-ink: #5B4300;
+    --gold-muted: #7A5E1A;
+
+    /* Red — losses and destructive actions */
+    --red: #E5484D;
+    --red-dark: #C93A40;
+    --red-soft: #FDF3F4;
+    --red-line: #F5CDD0;
+
+    /* Surfaces */
+    --card: #fff;
+    --canvas: #FAFBFA;
+    --wash: #F0F3F0;
+    --wash-2: #F4F7F3;
+    --wash-3: #F6FCF8;
+
+    /* Lines */
+    --line: #E5EAE5;
+    --line-2: #E7EBE7;
+    --line-3: #EDF1ED;
+    --line-4: #D7DED7;
+
+    /* Radii — flatter than v1 */
+    --r-sm: 7px;
+    --r-md: 13px;
+    --r-lg: 18px;
+    --r-xl: 22px;
+    --r-pill: 99px;
+
+    --shell: 0 30px 60px -40px rgba(22, 32, 26, .28);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--wash);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+}
+
+/* Vue mounts here; it must not become a layout box of its own. */
+#app {
+    display: contents;
+}
+
+.app {
+    position: relative;
+    width: 100%;
+    max-width: 430px;
+    height: 100dvh;
+    background: var(--canvas);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 480px) {
+    .app {
+        height: 844px;
+        max-height: 96dvh;
+        border-radius: 28px;
+        border: 1px solid var(--line-2);
+        box-shadow: var(--shell);
+    }
+}
+
+/* Numbers and headings carry the personality; body text stays neutral. */
+.num,
+h1,
+h2,
+h3 {
+    font-family: 'Sora', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.view {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+}
+
+.view.active {
+    display: flex;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--canvas);
+    display: none;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.overlay.show {
+    display: flex;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 22px 14px;
+    background: var(--card);
+    border-bottom: 1px solid var(--wash);
+    flex: none;
+}
+
+.topbar .greeting {
+    font-family: 'Sora', system-ui, sans-serif;
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.topbar .sub {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+/* ---------------------------------------------------------------- pieces */
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line);
+    background: var(--card);
+    display: grid;
+    place-items: center;
+    position: relative;
+    flex: none;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+.icon-btn .dot {
+    position: absolute;
+    top: 9px;
+    right: 10px;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: var(--red);
+    border: 1.5px solid var(--card);
+}
+
+.panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 16px;
+}
+
+.panel-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
+}
+
+.tile {
+    flex: 1;
+    border-radius: var(--r-lg);
+    padding: 11px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.tile.green {
+    background: linear-gradient(165deg, #20B56A, #0F9A50);
+    box-shadow: 0 5px 0 var(--green-deep);
+    color: #fff;
+}
+
+.tile.gold {
+    background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+    box-shadow: 0 5px 0 var(--gold-deep);
+    color: var(--gold-ink);
+}
+
+.tile .emoji {
+    font-size: 24px;
+    line-height: 1;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .22));
+}
+
+.tile .value {
+    font-family: 'Sora', system-ui, sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.tile .label {
+    font-size: 11.5px;
+    font-weight: 700;
+    opacity: .85;
+}
+
+.meter {
+    height: 5px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, .25);
+    overflow: hidden;
+}
+
+.meter > i {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: #fff;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+    width: 100%;
+    border: none;
+    border-radius: var(--r-md);
+    padding: 14px 18px;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: filter .12s, transform .06s;
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+.btn-primary {
+    background: var(--green);
+    color: #fff;
+}
+
+.btn-soft {
+    background: var(--wash);
+    color: var(--ink);
+}
+
+.btn-ghost {
+    background: none;
+    color: var(--muted);
+}
+
+.btn-danger {
+    background: var(--red);
+    color: #fff;
+}
+
+/* ------------------------------------------------------------ bottom nav */
+
+.bottom-nav {
+    display: flex;
+    background: var(--card);
+    border-top: 1px solid var(--wash);
+    padding: 10px 22px 22px;
+    flex: none;
+}
+
+.bottom-nav button {
+    flex: 1;
+    border: none;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--faint);
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.bottom-nav button.on {
+    color: var(--green);
+    font-weight: 800;
+}
+
+.bottom-nav .marker {
+    width: 4px;
+    height: 4px;
+    border-radius: var(--r-pill);
+    background: var(--green);
+}
+
+/* ---------------------------------------------------------------- toast */
+
+.toast {
+    position: absolute;
+    left: 50%;
+    bottom: 96px;
+    transform: translate(-50%, 12px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 11px 16px;
+    border-radius: var(--r-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 40;
+    max-width: 86%;
+    text-align: center;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
