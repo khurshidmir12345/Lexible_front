@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import LearnedWords from './LearnedWords.vue'
 import Modal from '../ui/Modal.vue'
 import { Ic } from '../../lib/icons'
 import { LANGUAGES, TIMES, WEEKDAYS, languageName } from '../../lib/languages'
@@ -8,6 +9,7 @@ import { telegram } from '../../lib/telegram'
 
 const user = computed(() => store.state.user)
 
+const showLearned = ref(false)
 const editing = ref(null)     // 'lang' | 'days' | 'time'
 const draftLang = ref(null)
 const draftDays = ref([])
@@ -70,6 +72,17 @@ const daysLabel = computed(() =>
       <span v-if="user.cefr_level" class="plevel">{{ user.cefr_level }}</span>
     </div>
 
+    <div class="psec">Yodlash</div>
+
+    <div class="prow" @click="showLearned = true">
+      <div class="ic" v-html="Ic.book"></div>
+      <div class="pt">
+        <b>Yodlangan soʼzlar</b>
+        <span>{{ user.words_learned }} ta soʼz toʼplandi</span>
+      </div>
+      <div class="chev" v-html="Ic.chev"></div>
+    </div>
+
     <div class="psec">Sozlamalar</div>
 
     <div class="prow" @click="openEdit('lang')">
@@ -102,6 +115,8 @@ const daysLabel = computed(() =>
     </div>
 
     <!-- The prototype had a password row here; Telegram owns the account now. -->
+
+    <LearnedWords v-if="showLearned" @close="showLearned = false" />
 
     <Modal :open="Boolean(editing)" :title="TITLES[editing]">
       <div v-if="editing === 'lang'" style="margin-top: 8px">

@@ -291,7 +291,7 @@ onBeforeUnmount(stopSpeech)
 </script>
 
 <template>
-  <div class="overlay show" style="z-index: 40">
+  <div class="overlay show">
     <div class="test-top">
       <button class="x" @click="exit">✕</button>
       <div class="tbar"><i :style="{ width: progress + '%' }"></i></div>

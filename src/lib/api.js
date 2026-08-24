@@ -49,6 +49,7 @@ export const api = {
   removeWord: (id, wordId) => request('DELETE', `/categories/${id}/words/${wordId}`),
 
   searchWords: (query) => request('GET', `/words/search?q=${encodeURIComponent(query)}`),
+  learned: (filter = 'learned') => request('GET', `/learned?filter=${filter}`),
 
   startTest: (categoryId, types, scope) =>
     request('POST', `/categories/${categoryId}/tests`, { types, scope }),

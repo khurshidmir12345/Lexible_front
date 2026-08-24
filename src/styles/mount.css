@@ -10,3 +10,20 @@
 #app {
     display: contents;
 }
+
+/*
+ * Layering.
+ *
+ * In the prototype every overlay was a direct child of .app; here they are
+ * nested inside the tab that opened them. That changes who paints on top:
+ * the map's cards carry `z-index:2` and the screen headers `z-index:6`, and
+ * an overlay with no z-index of its own loses to both — the map showed
+ * through the category page, and the header covered the word search.
+ *
+ * Giving .overlay a layer of its own fixes both at once. It also becomes a
+ * stacking context, so a nested overlay (word search, test) sits above its
+ * parent's header, while modals (22) and toasts (40) still win.
+ */
+.overlay {
+    z-index: 10;
+}

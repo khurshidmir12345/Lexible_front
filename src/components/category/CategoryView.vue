@@ -52,6 +52,12 @@ async function load() {
     words.value = data.words
     masteryByType.value = data.mastery_by_type
 
+    // The stage arrives pre-filled with the player's daily goal; say so, so it
+    // does not look like words appeared from nowhere.
+    if (data.auto_filled > 0) {
+      store.toast(`✨ ${data.auto_filled} ta yangi soʼz tayyorlandi`)
+    }
+
     // A node with no name yet asks for one before showing anything else.
     if (!category.value.title) {
       titleDraft.value = ''
@@ -212,8 +218,8 @@ onMounted(load)
             <path d="M12 5v14M5 12h14" />
           </svg>
         </div>
-        <h3>Hali soʼz yoʼq</h3>
-        <p>Bu kategoriyaga yodlamoqchi boʼlgan soʼzlaringizni qoʼshing.</p>
+        <h3>Soʼz topilmadi</h3>
+        <p>Lugʼatdagi soʼzlar tugadi — oʼzingiz qidirib qoʼshishingiz mumkin.</p>
         <button class="btn btn-primary" style="max-width: 240px" @click="addingWords = true">
           Lugʼat qoʼshish
         </button>
