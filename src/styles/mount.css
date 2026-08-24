@@ -1,0 +1,12 @@
+/*
+ * Vue mounts into #app, which puts an extra element between <body> and the
+ * .app container. The prototype's stylesheet assumes .app is a direct flex
+ * item of <body>: `body{display:flex}` plus `.app{width:100%;max-width:430px}`.
+ * With a wrapper in between, that width resolves against a shrink-to-fit box
+ * and collapses — the page renders, but at zero width, which looks like a
+ * blank screen. `display:contents` removes the wrapper from layout so .app
+ * becomes the flex item the stylesheet expects.
+ */
+#app {
+    display: contents;
+}
