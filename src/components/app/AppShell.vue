@@ -48,14 +48,14 @@ watch(tab, (next) => {
 
 <template>
   <div class="view active">
-    <header class="topbar">
+    <header class="v-topbar">
       <div>
         <div class="greeting">{{ TITLES[tab]() }}</div>
-        <div class="sub">{{ SUBTITLES[tab]() }}</div>
+        <div class="v-sub">{{ SUBTITLES[tab]() }}</div>
       </div>
       <button class="icon-btn" aria-label="Bildirishnomalar">
         <span v-html="bellIcon"></span>
-        <span class="dot"></span>
+        <span class="v-dot"></span>
       </button>
     </header>
 

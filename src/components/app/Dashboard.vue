@@ -28,8 +28,8 @@ const goalPercent = computed(() => {
     <div class="panel panel-row" style="padding: 13px 16px">
       <span class="flame">🔥</span>
       <div style="flex: 1">
-        <div class="num" style="font-size: 20px">{{ data.streak_days }} kun seriya</div>
-        <div class="sub-line">rekordingiz — {{ user.best_streak }} kun 🏅</div>
+        <div class="v-num" style="font-size: 20px">{{ data.streak_days }} kun seriya</div>
+        <div class="v-sub-line">rekordingiz — {{ user.best_streak }} kun 🏅</div>
       </div>
       <div class="streak-bars">
         <span
@@ -48,14 +48,14 @@ const goalPercent = computed(() => {
       <div class="tile green">
         <span class="emoji">🎯</span>
         <div class="value">{{ goalDone }} / {{ user.daily_goal }}</div>
-        <div class="label">bugungi maqsad</div>
+        <div class="v-label">bugungi maqsad</div>
         <div class="meter"><i :style="{ width: goalPercent + '%' }"></i></div>
       </div>
 
       <div class="tile gold">
         <span class="emoji">⭐</span>
         <div class="value">{{ data.coins ?? 0 }}</div>
-        <div class="label" style="color: var(--gold-muted)">tanga toʼplandi</div>
+        <div class="v-label" style="color: var(--gold-muted)">tanga toʼplandi</div>
         <div class="hint-gold">har mashq +1 · duel +10</div>
       </div>
     </div>
@@ -64,7 +64,7 @@ const goalPercent = computed(() => {
     <div class="panel">
       <div class="panel-head">
         <span>Bu hafta</span>
-        <span class="num accent">{{ data.week_total }} soʼz</span>
+        <span class="v-num accent">{{ data.week_total }} soʼz</span>
       </div>
       <div class="week-bars">
         <div
@@ -83,15 +83,15 @@ const goalPercent = computed(() => {
 
     <!-- Totals -->
     <div style="display: flex; gap: 12px">
-      <div class="panel stat">
-        <span class="stat-emoji">📚</span>
-        <div class="num" style="font-size: 20px">{{ data.words_learned }}</div>
-        <div class="sub-line">Jami yodlangan</div>
+      <div class="panel v-stat">
+        <span class="v-stat-emoji">📚</span>
+        <div class="v-num" style="font-size: 20px">{{ data.words_learned }}</div>
+        <div class="v-sub-line">Jami yodlangan</div>
       </div>
-      <div class="panel stat">
-        <span class="stat-emoji">🗓</span>
-        <div class="num" style="font-size: 20px">{{ data.month_total }}</div>
-        <div class="sub-line">Bu oy</div>
+      <div class="panel v-stat">
+        <span class="v-stat-emoji">🗓</span>
+        <div class="v-num" style="font-size: 20px">{{ data.month_total }}</div>
+        <div class="v-sub-line">Bu oy</div>
       </div>
     </div>
 
@@ -99,21 +99,21 @@ const goalPercent = computed(() => {
     <div class="panel">
       <div class="panel-head">
         <span>Duel natijalari</span>
-        <span class="num accent">{{ data.duel.win_rate }}% gʼalaba</span>
+        <span class="v-num accent">{{ data.duel.win_rate }}% gʼalaba</span>
       </div>
       <div style="display: flex; gap: 11px">
         <div class="duel-half win">
           <span class="duel-emoji">🏆</span>
           <div>
-            <div class="num" style="font-size: 20px; color: var(--green-dark)">{{ data.duel.wins }}</div>
-            <div class="duel-label">Gʼalaba</div>
+            <div class="v-num" style="font-size: 20px; color: var(--green-dark)">{{ data.duel.wins }}</div>
+            <div class="duel-v-label">Gʼalaba</div>
           </div>
         </div>
         <div class="duel-half loss">
           <span class="duel-emoji">🚩</span>
           <div>
-            <div class="num" style="font-size: 20px; color: var(--red-dark)">{{ data.duel.losses }}</div>
-            <div class="duel-label">Magʼlubiyat</div>
+            <div class="v-num" style="font-size: 20px; color: var(--red-dark)">{{ data.duel.losses }}</div>
+            <div class="duel-v-label">Magʼlubiyat</div>
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@ const goalPercent = computed(() => {
   filter: drop-shadow(0 4px 6px rgba(199, 84, 26, .35));
 }
 
-.sub-line {
+.v-sub-line {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
@@ -198,12 +198,12 @@ const goalPercent = computed(() => {
   color: var(--faint);
 }
 
-.stat {
+.v-stat {
   flex: 1;
   padding: 13px 15px;
 }
 
-.stat-emoji {
+.v-stat-emoji {
   font-size: 22px;
   line-height: 1;
   display: block;
