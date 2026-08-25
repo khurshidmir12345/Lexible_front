@@ -105,20 +105,22 @@ defineExpose({ load })
       <button class="btn btn-primary" @click="creating = true">Yoʼl yaratish</button>
     </div>
 
-    <Modal :open="creating" title="Yangi yoʼl" text="Masalan: 5-sinf, IELTS.">
-      <label class="field">
-        <span>YOʼL NOMI</span>
-        <input v-model="draft.title" placeholder="5-sinf" />
-      </label>
-      <label class="field">
-        <span>IZOH</span>
-        <input v-model="draft.subtitle" placeholder="Ingliz tili" />
-      </label>
-      <template #actions>
-        <button class="btn btn-soft" @click="creating = false">Bekor</button>
-        <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="createPath">Yaratish</button>
-      </template>
-    </Modal>
+    <Teleport to="#lx-overlays">
+      <Modal :open="creating" title="Yangi yoʼl" text="Masalan: 5-sinf, IELTS.">
+        <label class="field">
+          <span>YOʼL NOMI</span>
+          <input v-model="draft.title" placeholder="5-sinf" />
+        </label>
+        <label class="field">
+          <span>IZOH</span>
+          <input v-model="draft.subtitle" placeholder="Ingliz tili" />
+        </label>
+        <template #actions>
+          <button class="btn btn-soft" @click="creating = false">Bekor</button>
+          <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="createPath">Yaratish</button>
+        </template>
+      </Modal>
+    </Teleport>
   </div>
 </template>
 

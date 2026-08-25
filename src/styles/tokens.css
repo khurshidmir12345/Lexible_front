@@ -165,6 +165,11 @@ h3 {
 
 /* ---------------------------------------------------------------- layout */
 
+/* Host for teleported overlays; it must never take part in the shell layout. */
+#lx-overlays {
+    display: contents;
+}
+
 .view {
     position: absolute;
     inset: 0;

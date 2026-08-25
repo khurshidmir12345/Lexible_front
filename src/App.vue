@@ -26,6 +26,13 @@ onMounted(async () => {
 
 <template>
   <div class="app" :class="{ dark: store.state.dark }">
+    <!--
+      Overlays opened from inside a scrolling tab are teleported here. `.tabs`
+      clips its children, so an overlay rendered in place would only cover the
+      tab box and leave the top bar and nav showing through.
+    -->
+    <div id="lx-overlays"></div>
+
     <!-- Booting -->
     <div v-if="!store.state.ready" class="splash">
       <Mascot />

@@ -66,6 +66,9 @@ export const api = {
     competitionResults: (id) => request('GET', `/teacher/competitions/${id}/results`),
   },
 
+  accountImpact: () => request('GET', '/me/impact'),
+  deleteAccount: () => request('DELETE', '/me'),
+
   dashboard: () => request('GET', '/dashboard'),
   coins: () => request('GET', '/coins'),
   streak: () => request('GET', '/streak'),

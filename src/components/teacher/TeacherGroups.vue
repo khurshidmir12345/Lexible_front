@@ -79,24 +79,26 @@ defineExpose({ load })
       <p>Guruh yarating va kodni oʼquvchilaringizga bering.</p>
     </div>
 
-    <Modal :open="creating" title="Yangi guruh" text="Oʼquvchilar kod orqali qoʼshiladi.">
-      <label class="field">
-        <span>GURUH NOMI</span>
-        <input v-model="draft.title" placeholder="Masalan: 5-A sinf" />
-      </label>
-      <label class="field">
-        <span>IZOH</span>
-        <input v-model="draft.subtitle" placeholder="5-sinf Ingliz tili" />
-      </label>
-      <label class="field">
-        <span>QISQA BELGI</span>
-        <input v-model="draft.badge" maxlength="4" placeholder="5A" />
-      </label>
-      <template #actions>
-        <button class="btn btn-soft" @click="creating = false">Bekor</button>
-        <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="create">Yaratish</button>
-      </template>
-    </Modal>
+    <Teleport to="#lx-overlays">
+      <Modal :open="creating" title="Yangi guruh" text="Oʼquvchilar kod orqali qoʼshiladi.">
+        <label class="field">
+          <span>GURUH NOMI</span>
+          <input v-model="draft.title" placeholder="Masalan: 5-A sinf" />
+        </label>
+        <label class="field">
+          <span>IZOH</span>
+          <input v-model="draft.subtitle" placeholder="5-sinf Ingliz tili" />
+        </label>
+        <label class="field">
+          <span>QISQA BELGI</span>
+          <input v-model="draft.badge" maxlength="4" placeholder="5A" />
+        </label>
+        <template #actions>
+          <button class="btn btn-soft" @click="creating = false">Bekor</button>
+          <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="create">Yaratish</button>
+        </template>
+      </Modal>
+    </Teleport>
   </div>
 </template>
 

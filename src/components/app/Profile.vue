@@ -5,6 +5,7 @@ import ReferralSheet from '../sheets/ReferralSheet.vue'
 import PremiumSheet from '../sheets/PremiumSheet.vue'
 import Modal from '../ui/Modal.vue'
 import { RowIcon } from '../../lib/icons2'
+import { api } from '../../lib/api'
 import { LANGUAGES, TIMES, WEEKDAYS, languageName } from '../../lib/languages'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -55,6 +56,39 @@ async function save() {
 }
 
 const toggleDark = () => store.updateSettings({ dark_mode: !user.value.dark_mode })
+
+/** null → 'warn' (what is lost) → 'confirm' (the point of no return) */
+const closing = ref(null)
+const impact = ref(null)
+const deleting = ref(false)
+
+async function openClose() {
+  telegram.haptic()
+  closing.value = 'warn'
+  impact.value = null
+
+  try {
+    impact.value = (await api.accountImpact()).impact
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
+
+async function deleteAccount() {
+  deleting.value = true
+
+  try {
+    await api.deleteAccount()
+    telegram.notify('success')
+    // Nothing of theirs is left to render, so the app cannot stay open.
+    telegram.close()
+    location.reload()
+  } catch (error) {
+    store.toast(error.message)
+    deleting.value = false
+    closing.value = null
+  }
+}
 
 const daysLabel = computed(() => {
   const days = user.value.study_days ?? []
@@ -131,10 +165,23 @@ const daysLabel = computed(() => {
       <span class="v-row-c" style="color: rgba(255,255,255,.6)" v-html="RowIcon.chevron"></span>
     </button>
 
-    <LearnedWords v-if="showLearned" @close="showLearned = false" />
-    <ReferralSheet v-if="sheet === 'referral'" @close="sheet = null" />
-    <PremiumSheet v-if="sheet === 'premium'" @close="sheet = null" />
+    <div class="section danger">HISOB</div>
 
+    <div class="rows">
+      <button class="v-row danger-row" @click="openClose">
+        <span class="v-row-ic danger-ic" v-html="RowIcon.trash"></span>
+        <span class="v-row-t">Akkauntni oʼchirish</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
+      </button>
+    </div>
+
+    <Teleport to="#lx-overlays">
+      <LearnedWords v-if="showLearned" @close="showLearned = false" />
+      <ReferralSheet v-if="sheet === 'referral'" @close="sheet = null" />
+      <PremiumSheet v-if="sheet === 'premium'" @close="sheet = null" />
+    </Teleport>
+
+    <Teleport to="#lx-overlays">
     <Modal :open="Boolean(editing)" :title="TITLES[editing]">
       <div v-if="editing === 'lang'" class="choices">
         <button
@@ -184,6 +231,41 @@ const daysLabel = computed(() => {
         <button class="btn btn-primary" @click="save">Saqlash</button>
       </template>
     </Modal>
+
+    <Modal :open="closing === 'warn'" title="Akkauntni oʼchirish">
+      <p class="dz-lead">Oʼchirilgandan keyin bu maʼlumotlar qaytmaydi:</p>
+
+      <ul class="dz-list">
+        <li><b>{{ impact?.words_learned ?? user.words_learned }}</b> ta yodlangan soʼz</li>
+        <li><b>{{ impact?.coins ?? user.coins }}</b> tanga va premium holati</li>
+        <li><b>{{ impact?.streak_days ?? user.streak_days }}</b> kunlik seriya va butun xarita</li>
+      </ul>
+
+      <p v-if="impact?.groups_taught" class="dz-warn">
+        Siz ustozsiz: <b>{{ impact.groups_taught }}</b> ta guruh va ularning yoʼllari ham
+        oʼchadi — <b>{{ impact.students_affected }}</b> ta oʼquvchi bosqichlarini yoʼqotadi.
+      </p>
+
+      <template #actions>
+        <button class="btn btn-soft" @click="closing = null">Bekor</button>
+        <button class="btn btn-danger" @click="closing = 'confirm'">Davom etish</button>
+      </template>
+    </Modal>
+
+    <Modal :open="closing === 'confirm'" title="Aniqmi?">
+      <p class="dz-final">
+        Bu amalni ortga qaytarib boʼlmaydi. Telegram orqali qayta kirsangiz,
+        hammasi noldan boshlanadi.
+      </p>
+
+      <template #actions>
+        <button class="btn btn-soft" @click="closing = null">Yoʼq, qolsin</button>
+        <button class="btn btn-danger" :disabled="deleting" @click="deleteAccount">
+          {{ deleting ? 'Oʼchirilmoqda…' : 'Ha, oʼchirilsin' }}
+        </button>
+      </template>
+    </Modal>
+    </Teleport>
   </template>
 </template>
 
@@ -445,5 +527,88 @@ const daysLabel = computed(() => {
   font-size: 15px;
   font-weight: 800;
   color: var(--ink);
+}
+
+/* ------------------------------------------------------------ danger zone */
+
+.section.danger {
+  color: var(--red);
+}
+
+.danger-row .v-row-t {
+  color: var(--red);
+}
+
+.danger-ic {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: var(--red-line);
+}
+
+.dz-lead {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.dz-list {
+  list-style: none;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dz-list li {
+  position: relative;
+  padding: 11px 14px 11px 30px;
+  border-radius: var(--r-md);
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.dz-list li::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.dz-list b {
+  font-weight: 800;
+}
+
+.dz-warn {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--red-dark);
+}
+
+.dz-final {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.btn-danger:disabled {
+  opacity: .55;
+  pointer-events: none;
 }
 </style>

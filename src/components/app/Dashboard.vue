@@ -127,8 +127,10 @@ const goalPercent = computed(() => {
         <div style="flex: 1"></div>
       </div>
     </div>
-    <CoinsSheet v-if="sheet === 'coins'" @close="sheet = null" />
-    <StreakSheet v-if="sheet === 'streak'" @close="sheet = null" />
+    <Teleport to="#lx-overlays">
+      <CoinsSheet v-if="sheet === 'coins'" @close="sheet = null" />
+      <StreakSheet v-if="sheet === 'streak'" @close="sheet = null" />
+    </Teleport>
   </div>
 </template>
 
