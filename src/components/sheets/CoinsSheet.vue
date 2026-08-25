@@ -66,7 +66,7 @@ onMounted(async () => {
         </p>
       </template>
 
-      <button class="btn btn-primary" style="margin-top: 18px" @click="$emit('close')">Yopish</button>
+      <button class="btn btn-primary close-btn" @click="$emit('close')">Yopish</button>
     </div>
   </div>
 </template>
@@ -141,6 +141,13 @@ onMounted(async () => {
 }
 
 .tier.got .dot { border: none; }
+
+/* The rules list can outgrow the screen, so the way out stays in view. */
+.close-btn {
+  position: sticky;
+  bottom: -22px;
+  margin-top: 18px;
+}
 
 .active-note {
   background: var(--green-soft); color: var(--green-dark);
