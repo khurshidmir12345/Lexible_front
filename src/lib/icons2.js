@@ -19,3 +19,15 @@ export const RowIcon = {
   chevron: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg>`,
   spark: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 5.3L19.5 10l-5.3 1.7L12 17l-2.2-5.3L4.5 10l5.3-1.7z"/></svg>`,
 }
+
+/** Hero icons on the onboarding steps — 24px, green, 1.8 stroke. */
+export const StepIcon = {
+  globe: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.9 5.8 3.9 9s-1.3 6.4-3.9 9M12 3C9.4 5.6 8.1 8.8 8.1 12s1.3 6.4 3.9 9"/></svg>`,
+  calendar: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 2.8V6M16 2.8V6"/></svg>`,
+  clock: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.4 2"/></svg>`,
+  stairs: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4v-4h4v-4h4V8h5"/></svg>`,
+  target: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="#17A45C" stroke="none"/></svg>`,
+  teacher: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17A45C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L21 8l-9 4.5L3 8z"/><path d="M7 10.5V15c0 1.7 2.2 3 5 3s5-1.3 5-3v-4.5"/></svg>`,
+}
+
+export const backIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`
