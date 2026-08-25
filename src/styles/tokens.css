@@ -177,6 +177,24 @@ h3 {
     gap: 9px;
 }
 
+/* Tab host inside the app shell. */
+.tabs {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.tab {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+}
+
+.tab.active {
+    display: flex;
+}
+
 /* ---------------------------------------------------------------- pieces */
 
 .icon-btn {

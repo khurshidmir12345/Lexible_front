@@ -16,25 +16,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="app-root" class="app" :class="{ dark: store.state.dark }">
+  <div class="app" :class="{ dark: store.state.dark }">
     <!-- Booting -->
-    <div v-if="!store.state.ready" class="view active">
-      <div class="center">
-        <Mascot />
-        <div class="wordmark">Lexi<b>ble</b></div>
-      </div>
+    <div v-if="!store.state.ready" class="splash">
+      <Mascot />
+      <div class="mark">Lexible<b>.</b></div>
     </div>
 
     <!-- Could not reach the backend -->
-    <div v-else-if="store.state.error" class="view active">
-      <div class="center">
-        <div style="font-size: 54px">😕</div>
-        <h1 style="margin-top: 14px">Ulanib boʼlmadi</h1>
-        <p class="sub">{{ store.state.error }}</p>
-      </div>
-      <div class="stack">
-        <button class="btn btn-primary" @click="() => location.reload()">Qayta urinish</button>
-      </div>
+    <div v-else-if="store.state.error" class="splash">
+      <div class="sad">😕</div>
+      <h1 class="splash-title">Ulanib boʼlmadi</h1>
+      <p class="splash-sub">{{ store.state.error }}</p>
+      <button class="btn btn-primary retry" @click="() => location.reload()">Qayta urinish</button>
     </div>
 
     <Onboarding v-else-if="!entered" @enter="entered = true" />
@@ -44,3 +38,53 @@ onMounted(async () => {
     <Toast />
   </div>
 </template>
+
+<style scoped>
+.splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 26px;
+  text-align: center;
+  background: var(--card);
+}
+
+.mark {
+  font-family: 'Sora', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-top: 14px;
+}
+
+.mark b {
+  color: var(--green);
+}
+
+.sad {
+  font-size: 52px;
+}
+
+.splash-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.splash-sub {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 280px;
+}
+
+.retry {
+  max-width: 260px;
+  margin-top: 18px;
+}
+</style>
