@@ -51,6 +51,13 @@ export const api = {
   searchWords: (query) => request('GET', `/words/search?q=${encodeURIComponent(query)}`),
   learned: (filter = 'learned') => request('GET', `/learned?filter=${filter}`),
 
+  createDuel: (categoryId, types) => request('POST', `/categories/${categoryId}/duels`, { types }),
+  duel: (code) => request('GET', `/duels/${code}`),
+  joinDuel: (code) => request('POST', `/duels/${code}/join`),
+  playDuel: (code) => request('POST', `/duels/${code}/play`),
+  finishDuel: (code, score, durationMs) =>
+    request('POST', `/duels/${code}/finish`, { score, duration_ms: durationMs }),
+
   startTest: (categoryId, types, scope) =>
     request('POST', `/categories/${categoryId}/tests`, { types, scope }),
   answer: (sessionId, data) => request('POST', `/tests/${sessionId}/answer`, data),

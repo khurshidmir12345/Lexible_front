@@ -5,7 +5,13 @@ import { speak, stop as stopSpeech } from '../../lib/speech'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
-const props = defineProps({ sessionId: Number, questions: Array })
+const props = defineProps({
+  sessionId: Number,
+  questions: Array,
+  /** In a duel the header becomes a live scoreboard and there is no solo result. */
+  duel: { type: Object, default: null },
+})
+
 const emit = defineEmits(['finished', 'exit'])
 
 /**
@@ -235,9 +241,17 @@ const continueAfter = () => advance(feedback.value && !feedback.value.correct)
 
 async function finish() {
   stopSpeech()
+
   try {
     const res = await api.finishTest(props.sessionId, Date.now() - startedAt)
     telegram.notify('success')
+
+    // A duel has its own result screen, and the score has to reach the rival.
+    if (props.duel) {
+      emit('finished', { ...res, duration_ms: Date.now() - startedAt })
+      return
+    }
+
     result.value = res
   } catch (error) {
     store.toast(error.message)
@@ -305,7 +319,24 @@ onBeforeUnmount(stopSpeech)
 
     <!-- QUESTIONS -->
     <template v-else>
-      <div class="runner-head">
+      <div v-if="duel" class="duel-bar">
+        <div class="score-pill">
+          <span>Siz</span>
+          <b class="mine">{{ duel.me.score }}</b>
+          <i></i>
+          <b class="theirs">{{ duel.rival?.score ?? 0 }}</b>
+          <span>{{ duel.rival?.name ?? 'Doʼst' }}</span>
+        </div>
+        <div class="duel-track"><span :style="{ width: progress + '%' }"></span></div>
+        <p v-if="duel.rival && !duel.rival.finished" class="rival-note">
+          {{ duel.rival.name }} javob bermoqda…
+        </p>
+        <p v-else-if="duel.rival?.finished" class="rival-note">
+          {{ duel.rival.name }} tugatdi — shoshiling!
+        </p>
+      </div>
+
+      <div v-else class="runner-head">
         <button class="close" @click="emit('exit')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <path d="M6 6l12 12M18 6L6 18" />
@@ -316,7 +347,9 @@ onBeforeUnmount(stopSpeech)
       </div>
 
       <div v-if="current" class="runner-body">
-        <div class="kicker">{{ LABEL[current.type] }}</div>
+        <div class="kicker">
+          {{ duel ? `SAVOL ${askedSoFar} / ${totalAsked}` : LABEL[current.type] }}
+        </div>
 
         <!-- FLASHCARD -->
         <template v-if="current.type === 'card'">
@@ -925,6 +958,65 @@ onBeforeUnmount(stopSpeech)
 .btn-dark {
   background: var(--ink);
   color: #fff;
+}
+
+/* duel scoreboard */
+
+.duel-bar {
+  padding: 20px 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: none;
+}
+
+.score-pill {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.score-pill b {
+  font-family: 'Sora', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.score-pill .mine { color: var(--green); }
+.score-pill .theirs { color: var(--red); }
+
+.score-pill i {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+}
+
+.duel-track {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--line-3);
+  overflow: hidden;
+}
+
+.duel-track span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: #DFA32E;
+  transition: width .3s;
+}
+
+.rival-note {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--faint);
 }
 
 /* result */

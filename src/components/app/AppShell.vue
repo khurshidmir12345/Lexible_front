@@ -4,12 +4,15 @@ import Dashboard from './Dashboard.vue'
 import RoadMap from './RoadMap.vue'
 import Profile from './Profile.vue'
 import CategoryView from '../category/CategoryView.vue'
+import DuelFlow from '../duel/DuelFlow.vue'
+import { api } from '../../lib/api'
 import { NavIcon, bellIcon } from '../../lib/icons2'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const tab = ref('dash')
 const openCategoryId = ref(null)
+const duelCode = ref(null)
 
 const TABS = [
   { key: 'dash', label: 'Bosh', icon: NavIcon.home },
@@ -36,8 +39,28 @@ function switchTab(next) {
   telegram.haptic()
 }
 
+/**
+ * A friend arrives through `t.me/bot/game?startapp=duel_ABC123`. Telegram hands
+ * that payload to the page, so joining is the first thing that happens after
+ * the app boots.
+ */
+async function acceptInvite() {
+  const param = telegram.startParam
+  if (!param?.startsWith('duel_')) return
+
+  const code = param.slice(5).toUpperCase()
+
+  try {
+    await api.joinDuel(code)
+    duelCode.value = code
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
+
 onMounted(() => {
   store.refreshDashboard().catch(() => {})
+  acceptInvite()
 })
 
 // The home tab shows counters a finished round changes.
@@ -87,5 +110,7 @@ watch(tab, (next) => {
       :category-id="openCategoryId"
       @close="openCategoryId = null"
     />
+
+    <DuelFlow v-if="duelCode" :code="duelCode" @close="duelCode = null" />
   </div>
 </template>

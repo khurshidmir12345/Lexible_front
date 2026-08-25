@@ -6,6 +6,7 @@ import TestPicker from './TestPicker.vue'
 import WordDetail from './WordDetail.vue'
 import Modal from '../ui/Modal.vue'
 import TestRunner from '../test/TestRunner.vue'
+import DuelFlow from '../duel/DuelFlow.vue'
 import { backIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -29,6 +30,8 @@ const picker = ref(false)
 const pendingScope = ref('all')
 const running = ref(null)
 const removing = ref(null)
+const duelCode = ref(null)
+const duelIntent = ref(false)
 
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
@@ -153,6 +156,19 @@ function chooseScope(scope) {
   picker.value = true
 }
 
+/** The VS button reuses the exercise picker, then opens a lobby. */
+async function startDuel(types) {
+  picker.value = false
+  duelIntent.value = false
+
+  try {
+    const { duel } = await api.createDuel(props.categoryId, types)
+    duelCode.value = duel.code
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
+
 async function begin(types) {
   picker.value = false
   try {
@@ -199,7 +215,7 @@ onMounted(load)
             <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5v15l12-7.5z" /></svg>
             Boshlash
           </button>
-          <button class="vs" @click="store.toast('Duel keyingi bosqichda')">VS</button>
+          <button class="vs" @click="() => { duelIntent = true; picker = true }">VS</button>
         </div>
 
         <div class="panel" @click="openCategoryMastery">
@@ -274,8 +290,14 @@ onMounted(load)
       </template>
     </Modal>
 
-    <TestPicker :open="picker" @close="picker = false" @start="begin"
-      @duel="() => { picker = false; store.toast('Duel keyingi bosqichda') }" />
+    <TestPicker
+      :open="picker"
+      @close="() => { picker = false; duelIntent = false }"
+      @start="(types) => (duelIntent ? startDuel(types) : begin(types))"
+      @duel="startDuel"
+    />
+
+    <DuelFlow v-if="duelCode" :code="duelCode" @close="() => { duelCode = null; load() }" />
 
     <WordDetail :word="detailWord" @close="detailWord = null" />
 
