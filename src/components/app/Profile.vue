@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import LearnedWords from './LearnedWords.vue'
 import Modal from '../ui/Modal.vue'
-import { Ic } from '../../lib/icons'
+import { RowIcon } from '../../lib/icons2'
 import { LANGUAGES, TIMES, WEEKDAYS, languageName } from '../../lib/languages'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -10,7 +10,7 @@ import { telegram } from '../../lib/telegram'
 const user = computed(() => store.state.user)
 
 const showLearned = ref(false)
-const editing = ref(null)     // 'lang' | 'days' | 'time'
+const editing = ref(null)          // 'lang' | 'days' | 'time'
 const draftLang = ref(null)
 const draftDays = ref([])
 const draftTime = ref(null)
@@ -51,79 +51,99 @@ async function save() {
   }
 }
 
-async function toggleDark() {
-  await store.updateSettings({ dark_mode: !user.value.dark_mode })
-}
+const toggleDark = () => store.updateSettings({ dark_mode: !user.value.dark_mode })
 
-const daysLabel = computed(() =>
-  user.value.study_days?.length ? user.value.study_days.join(', ') : 'tanlanmagan',
-)
+const daysLabel = computed(() => {
+  const days = user.value.study_days ?? []
+  return days.length ? `${days.length} kun` : 'tanlanmagan'
+})
+
+function invite() {
+  const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
+  const short = window.LEXIBLE?.miniAppShortName ?? 'game'
+  telegram.share(
+    `https://t.me/${bot}/${short}?startapp=ref_${user.value.telegram_id}`,
+    'Lexible — ingliz tili soʼzlarini oʼyin orqali yodlang',
+  )
+}
 </script>
 
 <template>
-  <div v-if="user">
-    <div class="pcard">
-      <img v-if="user.photo" class="pav" :src="user.photo" alt="" style="object-fit: cover" />
-      <div v-else class="pav">{{ user.initial }}</div>
-      <div>
-        <div class="pname">{{ user.name }}</div>
-        <div class="pphone">{{ user.username ? '@' + user.username : 'Telegram hisobi' }}</div>
+  <template v-if="user">
+    <!-- Identity -->
+    <div class="who">
+      <img v-if="user.photo" class="avatar" :src="user.photo" alt="" />
+      <div v-else class="avatar">{{ user.initial }}</div>
+      <div style="flex: 1">
+        <div class="name">{{ user.name }}</div>
+        <div class="handle">{{ user.username ? '@' + user.username : 'Telegram hisobi' }}</div>
       </div>
-      <span v-if="user.cefr_level" class="plevel">{{ user.cefr_level }}</span>
+      <span v-if="user.cefr_level" class="level">{{ user.cefr_level }}</span>
     </div>
 
-    <div class="psec">Yodlash</div>
+    <div class="section">SOZLAMALAR</div>
 
-    <div class="prow" @click="showLearned = true">
-      <div class="ic" v-html="Ic.book"></div>
-      <div class="pt">
-        <b>Yodlangan soʼzlar</b>
-        <span>{{ user.words_learned }} ta soʼz toʼplandi</span>
+    <div class="rows">
+      <button class="row" @click="openEdit('lang')">
+        <span class="row-ic" v-html="RowIcon.globe"></span>
+        <span class="row-t">Til</span>
+        <span class="row-v">{{ languageName(user.native_lang) }}</span>
+        <span class="row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <button class="row" @click="openEdit('days')">
+        <span class="row-ic" v-html="RowIcon.calendar"></span>
+        <span class="row-t">Yodlash kunlari</span>
+        <span class="row-v">{{ daysLabel }}</span>
+        <span class="row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <button class="row" @click="openEdit('time')">
+        <span class="row-ic" v-html="RowIcon.clock"></span>
+        <span class="row-t">Eslatish vaqti</span>
+        <span class="row-v">{{ user.reminder_at ?? 'tanlanmagan' }}</span>
+        <span class="row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <div class="row">
+        <span class="row-ic" v-html="RowIcon.moon"></span>
+        <span class="row-t">Tungi rejim</span>
+        <button class="switch" :class="{ on: user.dark_mode }" @click="toggleDark"><i></i></button>
       </div>
-      <div class="chev" v-html="Ic.chev"></div>
+
+      <button class="row" @click="showLearned = true">
+        <span class="row-ic" v-html="RowIcon.book"></span>
+        <span class="row-t">Yodlangan soʼzlar</span>
+        <span class="row-v">{{ user.words_learned }} ta</span>
+        <span class="row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <button class="row" @click="invite">
+        <span class="row-ic" v-html="RowIcon.gift"></span>
+        <span class="row-t">Doʼstlarni taklif qilish</span>
+        <span class="row-v gold">+50 tanga</span>
+        <span class="row-c" v-html="RowIcon.chevron"></span>
+      </button>
     </div>
 
-    <div class="psec">Sozlamalar</div>
-
-    <div class="prow" @click="openEdit('lang')">
-      <div class="ic" v-html="Ic.globe"></div>
-      <div class="pt"><b>Til</b><span>{{ languageName(user.native_lang) }}</span></div>
-      <div class="chev" v-html="Ic.chev"></div>
-    </div>
-
-    <div class="prow" @click="openEdit('days')">
-      <div class="ic" v-html="Ic.cal"></div>
-      <div class="pt"><b>Yodlash kunlari</b><span>{{ daysLabel }}</span></div>
-      <div class="chev" v-html="Ic.chev"></div>
-    </div>
-
-    <div class="prow" @click="openEdit('time')">
-      <div class="ic" v-html="Ic.clock"></div>
-      <div class="pt"><b>Eslatish vaqti</b><span>{{ user.reminder_at ?? 'tanlanmagan' }}</span></div>
-      <div class="chev" v-html="Ic.chev"></div>
-    </div>
-
-    <div class="prow">
-      <div class="ic" v-html="Ic.target"></div>
-      <div class="pt"><b>Kunlik maqsad</b><span>{{ user.daily_goal }} soʼz</span></div>
-    </div>
-
-    <div class="prow">
-      <div class="ic" v-html="Ic.moon"></div>
-      <div class="pt"><b>Tungi rejim</b><span>Dark mode</span></div>
-      <div class="switch" :class="{ on: user.dark_mode }" @click="toggleDark"></div>
-    </div>
-
-    <!-- The prototype had a password row here; Telegram owns the account now. -->
+    <!-- Premium -->
+    <button class="premium" @click="store.toast('Premium keyingi bosqichda ochiladi')">
+      <span class="premium-ic" v-html="RowIcon.spark"></span>
+      <span style="flex: 1; text-align: left">
+        <b>Lexible Premium</b>
+        <i>AI talaffuz · cheksiz soʼzlar</i>
+      </span>
+      <span class="row-c" style="color: rgba(255,255,255,.6)" v-html="RowIcon.chevron"></span>
+    </button>
 
     <LearnedWords v-if="showLearned" @close="showLearned = false" />
 
     <Modal :open="Boolean(editing)" :title="TITLES[editing]">
-      <div v-if="editing === 'lang'" style="margin-top: 8px">
+      <div v-if="editing === 'lang'" class="choices">
         <button
           v-for="language in LANGUAGES"
           :key="language.code"
-          class="opt2"
+          class="choice"
           :class="{ sel: draftLang === language.code }"
           @click="draftLang = language.code"
         >
@@ -131,11 +151,11 @@ const daysLabel = computed(() =>
         </button>
       </div>
 
-      <div v-else-if="editing === 'days'" class="days2" style="margin-top: 8px">
+      <div v-else-if="editing === 'days'" class="day-grid">
         <button
           v-for="day in WEEKDAYS"
           :key="day"
-          class="day2"
+          class="day-pill"
           :class="{ sel: draftDays.includes(day) }"
           @click="toggleDraftDay(day)"
         >
@@ -143,19 +163,20 @@ const daysLabel = computed(() =>
         </button>
       </div>
 
-      <div v-else-if="editing === 'time'" style="margin-top: 8px">
-        <div class="times2">
+      <div v-else-if="editing === 'time'">
+        <div class="choices" style="flex-direction: row; flex-wrap: wrap">
           <button
             v-for="time in TIMES"
             :key="time.value"
-            class="t2"
+            class="choice"
+            style="flex: 1 1 40%"
             :class="{ sel: draftTime === time.value && !customTime }"
             @click="(draftTime = time.value), (customTime = '')"
           >
             {{ time.value }}
           </button>
         </div>
-        <label class="custom" style="margin-top: 10px">
+        <label class="custom-time">
           <span>Boshqa vaqt</span>
           <input v-model="customTime" type="time" />
         </label>
@@ -166,5 +187,266 @@ const daysLabel = computed(() =>
         <button class="btn btn-primary" @click="save">Saqlash</button>
       </template>
     </Modal>
-  </div>
+  </template>
 </template>
+
+<style scoped>
+.who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px;
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-lg);
+  background: var(--green-soft);
+  color: var(--green-dark);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  object-fit: cover;
+  flex: none;
+}
+
+.name {
+  font-family: 'Sora', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.handle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.level {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  border-radius: var(--r-sm);
+  padding: 5px 9px;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.section {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--faint);
+  margin: 8px 0 -2px 4px;
+}
+
+.rows {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--wash);
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--wash-2);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.row-t {
+  flex: 1;
+}
+
+.row-v {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.row-v.gold {
+  color: var(--gold);
+}
+
+.row-c {
+  color: var(--faint);
+  display: grid;
+  place-items: center;
+}
+
+.switch {
+  width: 40px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  background: #E1E7E1;
+  border: none;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(22, 32, 26, .25);
+  transition: transform .15s;
+}
+
+.switch.on {
+  background: var(--green);
+}
+
+.switch.on i {
+  transform: translateX(16px);
+}
+
+.premium {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--ink);
+  border: none;
+  border-radius: var(--r-lg);
+  padding: 16px;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+}
+
+.premium-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, .1);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.premium b {
+  display: block;
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.premium i {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .6);
+  margin-top: 2px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.choice {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.choice.sel {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.day-grid {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.day-pill {
+  flex: 1;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: var(--r-md);
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.day-pill.sel {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.custom-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  background: var(--wash-2);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.custom-time input {
+  border: none;
+  background: none;
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+</style>
