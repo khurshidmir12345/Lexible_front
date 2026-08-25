@@ -1,53 +1,62 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { FUN_EMOJI, MapIcon, SEASON_EMOJI } from '../../lib/icons'
+import { computed } from 'vue'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const emit = defineEmits(['open'])
 
-const mapEl = ref(null)
-const innerEl = ref(null)
-const connEl = ref(null)
-const shaking = ref(null)
-const scrolledOnce = ref(false)
+// Geometry from the artboard: 88px nodes inset 26px from either edge,
+// stacked 96px apart, alternating sides.
+const NODE = 88
+const INSET = 26
+const GAP = 96
+const TOP = 104
+const WIDTH = 390
 
-// The newest node sits at the top, so the map reads like a path climbing away
-// from where the player started.
-const nodes = computed(() => [...store.state.road].sort((a, b) => b.position - a.position))
+/** Newest node on top, so the path reads as climbing away from the start. */
+const nodes = computed(() =>
+  [...store.state.road]
+    .sort((a, b) => b.position - a.position)
+    .map((node, index) => ({
+      ...node,
+      index,
+      side: index % 2 === 0 ? 'left' : 'right',
+      top: TOP + index * GAP,
+      cx: index % 2 === 0 ? INSET + NODE / 2 : WIDTH - INSET - NODE / 2,
+      cy: TOP + index * GAP + NODE / 2,
+    })),
+)
 
-function sideOf(position) {
-  return position % 2 === 0 ? 'left' : 'right'
-}
+const canvasHeight = computed(() => TOP + nodes.value.length * GAP + 40)
 
-function iconOf(node) {
-  if (node.status === 'completed') return MapIcon.refresh
-  if (node.status === 'in_progress') return MapIcon.play
-  return MapIcon.lock
-}
+/**
+ * An S-curve between two node centres, the way the artboard draws it: the
+ * line leaves upward, swings across, and arrives from below.
+ */
+const connectors = computed(() =>
+  nodes.value.slice(0, -1).map((upper, i) => {
+    const lower = nodes.value[i + 1]
+    const goingLeft = lower.cx < upper.cx
+    const bend = goingLeft ? 22 : -22
 
-function decoration(node, slot) {
-  const season = SEASON_EMOJI[node.season] ?? SEASON_EMOJI.winter
-  return slot === 1 ? season[node.position % season.length] : FUN_EMOJI[node.position % FUN_EMOJI.length]
-}
+    return `M ${lower.cx} ${lower.cy} C ${lower.cx - bend} ${lower.cy - 54}, ` +
+      `${upper.cx + bend} ${upper.cy + 66}, ${upper.cx} ${upper.cy}`
+  }),
+)
 
-function formatDate(iso) {
-  if (!iso) return ''
-  const [year, month, day] = iso.split('-')
-  return `${day}.${month}.${year.slice(2)}`
+function style(node) {
+  const base = {
+    top: `${node.top}px`,
+    [node.side]: `${INSET}px`,
+  }
+
+  return base
 }
 
 function open(node) {
   if (node.status === 'locked') {
-    shaking.value = node.id
     telegram.notify('warning')
-    setTimeout(() => (shaking.value = null), 420)
-    store.toast('🔒 Avval oldingi bosqichlarni tugating')
-    return
-  }
-
-  if (node.type === 'exam') {
-    store.toast('Imtihon — keyingi bosqichda ochiladi 🎯')
+    store.toast('🔒 Avval oldingi bosqichni tugating')
     return
   }
 
@@ -55,127 +64,297 @@ function open(node) {
   emit('open', node.id)
 }
 
-/** Rounded right-angle path between two node centres. */
-function elbow(x0, y0, x1, y1, radius) {
-  const midY = (y0 + y1) / 2
-  const direction = x1 >= x0 ? 1 : -1
-
-  return `M ${x0} ${y0} L ${x0} ${midY + radius} Q ${x0} ${midY} ${x0 + direction * radius} ${midY} ` +
-    `L ${x1 - direction * radius} ${midY} Q ${x1} ${midY} ${x1} ${midY - radius} L ${x1} ${y1}`
+const formatDate = (iso) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y.slice(2)}`
 }
 
-function drawConnectors() {
-  const inner = innerEl.value
-  const svg = connEl.value
-  if (!inner || !svg) return
-
-  const bounds = inner.getBoundingClientRect()
-  if (!bounds.width) return
-
-  svg.setAttribute('width', inner.clientWidth)
-  svg.setAttribute('height', inner.offsetHeight)
-  svg.setAttribute('viewBox', `0 0 ${inner.clientWidth} ${inner.offsetHeight}`)
-
-  const cards = [...inner.querySelectorAll('.card')]
-  let path = ''
-
-  for (let i = 0; i < cards.length - 1; i++) {
-    const upper = cards[i].getBoundingClientRect()
-    const lower = cards[i + 1].getBoundingClientRect()
-
-    const x0 = lower.left - bounds.left + lower.width / 2
-    const y0 = lower.top - bounds.top
-    const x1 = upper.left - bounds.left + upper.width / 2
-    const y1 = upper.top - bounds.top + upper.height
-
-    // The segment takes the colour of the node below it — the one the player
-    // has to finish before the line leads anywhere.
-    const below = nodes.value[i + 1]
-    const colour =
-      below.status === 'completed' ? '#37c26a' : below.status === 'in_progress' ? '#2d9cdb' : '#c6d2ca'
-
-    path += `<path d="${elbow(x0, y0, x1, y1, 16)}" stroke="${colour}" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9 12"/>`
-  }
-
-  svg.innerHTML = path
-}
-
-async function refresh() {
-  await nextTick()
-  requestAnimationFrame(() => {
-    drawConnectors()
-
-    // Open the map at the bottom, where the journey starts.
-    if (!scrolledOnce.value && mapEl.value) {
-      mapEl.value.scrollTop = mapEl.value.scrollHeight
-      scrolledOnce.value = true
-    }
-  })
-}
-
-const onResize = () => requestAnimationFrame(drawConnectors)
-
-onMounted(() => {
-  refresh()
-  window.addEventListener('resize', onResize)
-})
-
-onBeforeUnmount(() => window.removeEventListener('resize', onResize))
-
-watch(nodes, refresh, { deep: true })
+const isCreate = (node) => node.status !== 'locked' && !node.title
 </script>
 
 <template>
-  <div ref="mapEl" class="map">
-    <div ref="innerEl" class="inner">
-      <svg ref="connEl" class="conn"></svg>
-      <div>
-        <div
-          v-for="node in nodes"
-          :key="node.id"
-          class="row"
-          :class="`row-${sideOf(node.position)}`"
-        >
-          <div
-            class="deco"
-            :style="{ [sideOf(node.position) === 'left' ? 'right' : 'left']: '62px', top: '28%' }"
-          >
-            {{ decoration(node, 1) }}
-          </div>
-          <div
-            v-if="node.position % 2 === 0"
-            class="deco"
-            :style="{
-              [sideOf(node.position) === 'left' ? 'right' : 'left']: '30px',
-              top: '64%',
-              fontSize: '19px',
-            }"
-          >
-            {{ decoration(node, 2) }}
-          </div>
+  <div class="road">
+    <!-- Paths: the personal one today, group paths once they exist. -->
+    <div class="path-tabs">
+      <span class="path-tab on">
+        Yoʼl
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20l4.5-1L20 7.5a2.1 2.1 0 0 0-3-3L5.5 16z" />
+        </svg>
+      </span>
+      <button class="path-add" @click="store.toast('Guruh yoʼllari keyingi bosqichda')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#66736B" stroke-width="2.2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    </div>
 
-          <div class="slot">
-            <button
-              class="card"
-              :class="[`st-${node.status}`, { ex: node.type === 'exam', shake: shaking === node.id }]"
-              @click="open(node)"
-            >
-              <span class="num">{{ node.position }}</span>
-              <span class="date">{{ formatDate(node.date) }}</span>
-              <span v-if="node.status === 'in_progress'" v-html="MapIcon.wave"></span>
-              <span class="circle" v-html="iconOf(node)"></span>
+    <div class="canvas">
+      <div class="inner" :style="{ height: canvasHeight + 'px' }">
+        <svg class="links" :viewBox="`0 0 ${WIDTH} ${canvasHeight}`" preserveAspectRatio="none" fill="none">
+          <path
+            v-for="(d, i) in connectors"
+            :key="i"
+            :d="d"
+            stroke="#D9D6C8"
+            stroke-width="4.5"
+            stroke-linecap="round"
+            stroke-dasharray="8 12"
+          />
+        </svg>
 
-              <span v-if="node.type === 'exam'" class="label">EXAM</span>
-              <span v-else-if="node.status === 'completed'" class="label">
-                <span v-html="MapIcon.check"></span> completed
+        <template v-for="node in nodes" :key="node.id">
+          <span v-if="node.status === 'in_progress' && node.title" class="here" :style="{ top: `${node.top - 26}px`, [node.side === 'left' ? 'left' : 'right']: '14px' }">
+            SIZ SHU YERDASIZ
+          </span>
+
+          <button class="node" :class="[node.status, { exam: node.type === 'exam', create: isCreate(node) }]" :style="style(node)" @click="open(node)">
+            <!-- Fresh node the player has not named yet -->
+            <template v-if="isCreate(node)">
+              <span class="ring dashed">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#98A49C" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
               </span>
-              <span v-else-if="node.status === 'in_progress'" class="label pct">
-                {{ node.progress }}%
+              <span class="create-label">KATEGORIYA<br />YARATING</span>
+            </template>
+
+            <template v-else>
+              <span class="head">
+                <b class="v-num">{{ node.position }}</b>
+                <i>{{ formatDate(node.date) }}</i>
               </span>
-            </button>
-          </div>
-        </div>
+
+              <span class="ring">
+                <!-- completed -->
+                <svg v-if="node.status === 'completed'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 13l5 5L20 7" />
+                </svg>
+                <!-- locked -->
+                <svg v-else-if="node.status === 'locked'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <rect x="5" y="11" width="14" height="9" rx="2.5" />
+                  <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
+                </svg>
+                <!-- in progress -->
+                <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5.5v13l11-6.5z" />
+                </svg>
+              </span>
+
+              <span v-if="node.type === 'exam'" class="tag">
+                IMTIHON{{ node.status === 'completed' ? ' ✓' : '' }}
+              </span>
+              <span v-else-if="node.status === 'completed'" class="pill">✓ BAJARILDI</span>
+              <span v-else-if="node.status === 'in_progress'" class="pct v-num">{{ node.progress }}%</span>
+            </template>
+          </button>
+        </template>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.road {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.path-tabs {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 10px 22px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--wash);
+  flex: none;
+}
+
+.path-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-pill);
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.path-tab.on {
+  background: var(--ink);
+  color: #fff;
+}
+
+.path-add {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  border: 1.5px dashed #C3CEC5;
+  background: none;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.canvas {
+  flex: 1;
+  overflow-y: auto;
+  background: #F3F1EA;
+}
+
+.inner {
+  position: relative;
+  width: 100%;
+}
+
+.links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  display: block;
+}
+
+.node {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  border: none;
+  border-radius: 22px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+  color: #fff;
+  transition: transform .07s;
+}
+
+.node:active {
+  transform: translateY(3px);
+}
+
+.node.completed {
+  background: linear-gradient(165deg, #20B56A, #0F9A50);
+  box-shadow: 0 5px 0 var(--green-deep);
+}
+
+.node.in_progress {
+  background: linear-gradient(165deg, #3D8BFA, #2266DB);
+  box-shadow: 0 5px 0 #1B54B8;
+}
+
+.node.locked {
+  background: linear-gradient(165deg, #E3E7E3, #D2D8D2);
+  box-shadow: 0 5px 0 #BEC6BE;
+  color: #7E8A81;
+}
+
+.node.exam {
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  box-shadow: 0 5px 0 var(--gold-deep);
+  color: #6B4E00;
+}
+
+.node.create {
+  background: var(--card);
+  border: 2px dashed #B9C7BC;
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--faint);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.head .v-num {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.head i {
+  font-size: 8px;
+  font-weight: 700;
+  font-style: normal;
+  opacity: .85;
+}
+
+.ring {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .28);
+  display: grid;
+  place-items: center;
+  margin: 2px auto 0;
+}
+
+.node.exam .ring {
+  background: rgba(255, 255, 255, .45);
+}
+
+.ring.dashed {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 2px dashed #B9C7BC;
+  margin: 0;
+}
+
+.create-label {
+  font-size: 7.5px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.tag {
+  font-family: 'Sora', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: auto;
+  text-align: center;
+}
+
+.pill {
+  background: rgba(255, 255, 255, .95);
+  color: var(--green-deep);
+  border-radius: var(--r-sm);
+  padding: 2.5px 7px;
+  font-size: 7.5px;
+  font-weight: 800;
+  margin-top: auto;
+  align-self: center;
+  letter-spacing: .3px;
+}
+
+.pct {
+  font-size: 12px;
+  text-align: center;
+  margin-top: auto;
+}
+
+.here {
+  position: absolute;
+  background: var(--green);
+  color: #fff;
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  box-shadow: 0 3px 8px rgba(18, 138, 77, .35);
+  z-index: 2;
+  white-space: nowrap;
+}
+</style>
