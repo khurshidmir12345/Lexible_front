@@ -382,6 +382,10 @@ onMounted(load)
   gap: 13px;
 }
 
+.c-body > * {
+  flex: none;
+}
+
 .actions {
   display: flex;
   gap: 10px;

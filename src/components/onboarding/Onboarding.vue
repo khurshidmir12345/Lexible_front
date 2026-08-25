@@ -404,6 +404,10 @@ async function finish() {
   gap: 9px;
 }
 
+.ob-body > * {
+  flex: none;
+}
+
 .ob-foot {
   padding: 12px 22px 22px;
   display: flex;

@@ -604,6 +604,10 @@ onBeforeUnmount(stopSpeech)
   gap: 18px;
 }
 
+.runner-body > * {
+  flex: none;
+}
+
 .kicker {
   font-size: 11px;
   font-weight: 800;

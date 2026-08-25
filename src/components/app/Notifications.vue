@@ -86,6 +86,10 @@ onMounted(load)
   display: flex; flex-direction: column; gap: 8px;
 }
 
+.notif-body > * {
+  flex: none;
+}
+
 .day {
   font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
   color: var(--faint); margin: 8px 0 -2px 4px;

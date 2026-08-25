@@ -227,6 +227,13 @@ h3 {
     gap: 9px;
 }
 
+/* A column flex item shrinks to fit its container before the container is
+   allowed to scroll. Cards that clip their own content — a settings list, say —
+   would lose their last rows to that squeeze rather than scrolling into view. */
+.scroll > * {
+    flex: none;
+}
+
 /* Tab host inside the app shell. */
 .tabs {
     flex: 1;

@@ -248,6 +248,10 @@ onMounted(load)
   display: flex; flex-direction: column; gap: 10px;
 }
 
+.detail-body > * {
+  flex: none;
+}
+
 .section {
   font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
   color: var(--faint); margin: 6px 0 -2px 4px;

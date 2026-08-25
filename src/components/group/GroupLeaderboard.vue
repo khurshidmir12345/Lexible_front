@@ -105,6 +105,10 @@ onMounted(load)
   display: flex; flex-direction: column; gap: 12px;
 }
 
+.board-body > * {
+  flex: none;
+}
+
 .mine {
   display: flex; align-items: center; gap: 13px;
   background: var(--green-soft); border: 1px solid var(--green-pale);
