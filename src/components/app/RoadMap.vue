@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
@@ -71,6 +71,27 @@ const formatDate = (iso) => {
 }
 
 const isCreate = (node) => node.status !== 'locked' && !node.title
+
+const canvasEl = ref(null)
+
+/**
+ * The map is taller than the screen and the player's own step usually sits
+ * well down it, so open on that step rather than at the top.
+ */
+async function focusCurrent() {
+  await nextTick()
+
+  const el = canvasEl.value
+  const current = nodes.value.find((n) => n.status === 'in_progress') ?? nodes.value[nodes.value.length - 1]
+  if (!el || !current) return
+
+  requestAnimationFrame(() => {
+    el.scrollTop = Math.max(0, current.top - el.clientHeight / 2 + NODE / 2)
+  })
+}
+
+onMounted(focusCurrent)
+watch(() => store.state.road.length, focusCurrent)
 </script>
 
 <template>
@@ -90,7 +111,7 @@ const isCreate = (node) => node.status !== 'locked' && !node.title
       </button>
     </div>
 
-    <div class="canvas">
+    <div ref="canvasEl" class="canvas">
       <div class="inner" :style="{ height: canvasHeight + 'px' }">
         <svg class="links" :viewBox="`0 0 ${WIDTH} ${canvasHeight}`" preserveAspectRatio="none" fill="none">
           <path
