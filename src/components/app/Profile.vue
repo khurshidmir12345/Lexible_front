@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LearnedWords from './LearnedWords.vue'
+import ReferralSheet from '../sheets/ReferralSheet.vue'
+import PremiumSheet from '../sheets/PremiumSheet.vue'
 import Modal from '../ui/Modal.vue'
 import { RowIcon } from '../../lib/icons2'
 import { LANGUAGES, TIMES, WEEKDAYS, languageName } from '../../lib/languages'
@@ -10,6 +12,7 @@ import { telegram } from '../../lib/telegram'
 const user = computed(() => store.state.user)
 
 const showLearned = ref(false)
+const sheet = ref(null)   // 'referral' | 'premium'
 const editing = ref(null)          // 'lang' | 'days' | 'time'
 const draftLang = ref(null)
 const draftDays = ref([])
@@ -58,14 +61,6 @@ const daysLabel = computed(() => {
   return days.length ? `${days.length} kun` : 'tanlanmagan'
 })
 
-function invite() {
-  const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
-  const short = window.LEXIBLE?.miniAppShortName ?? 'game'
-  telegram.share(
-    `https://t.me/${bot}/${short}?startapp=ref_${user.value.telegram_id}`,
-    'Lexible — ingliz tili soʼzlarini oʼyin orqali yodlang',
-  )
-}
 </script>
 
 <template>
@@ -118,7 +113,7 @@ function invite() {
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
-      <button class="v-row" @click="invite">
+      <button class="v-row" @click="sheet = 'referral'">
         <span class="v-row-ic" v-html="RowIcon.gift"></span>
         <span class="v-row-t">Doʼstlarni taklif qilish</span>
         <span class="v-row-v gold">+50 tanga</span>
@@ -127,7 +122,7 @@ function invite() {
     </div>
 
     <!-- Premium -->
-    <button class="premium" @click="store.toast('Premium keyingi bosqichda ochiladi')">
+    <button class="premium" @click="sheet = 'premium'">
       <span class="premium-ic" v-html="RowIcon.spark"></span>
       <span style="flex: 1; text-align: left">
         <b>Lexible Premium</b>
@@ -137,6 +132,8 @@ function invite() {
     </button>
 
     <LearnedWords v-if="showLearned" @close="showLearned = false" />
+    <ReferralSheet v-if="sheet === 'referral'" @close="sheet = null" />
+    <PremiumSheet v-if="sheet === 'premium'" @close="sheet = null" />
 
     <Modal :open="Boolean(editing)" :title="TITLES[editing]">
       <div v-if="editing === 'lang'" class="choices">

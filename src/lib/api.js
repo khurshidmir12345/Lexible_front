@@ -41,6 +41,8 @@ export const api = {
   updateMe: (data) => request('PATCH', '/me', data),
 
   dashboard: () => request('GET', '/dashboard'),
+  coins: () => request('GET', '/coins'),
+  streak: () => request('GET', '/streak'),
   road: () => request('GET', '/road'),
 
   category: (id) => request('GET', `/categories/${id}`),

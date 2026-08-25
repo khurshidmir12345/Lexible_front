@@ -1,7 +1,12 @@
 <script setup>
 import { computed } from 'vue'
+import { ref } from 'vue'
+import CoinsSheet from '../sheets/CoinsSheet.vue'
+import StreakSheet from '../sheets/StreakSheet.vue'
 import { WEEKDAYS } from '../../lib/languages'
 import { store } from '../../lib/store'
+
+const sheet = ref(null)   // 'coins' | 'streak'
 
 const data = computed(() => store.state.dashboard)
 const user = computed(() => store.state.user)
@@ -25,7 +30,7 @@ const goalPercent = computed(() => {
 <template>
   <div v-if="data" class="scroll">
     <!-- Streak -->
-    <div class="panel panel-row" style="padding: 13px 16px">
+    <div class="panel panel-row tappable" style="padding: 13px 16px" @click="sheet = 'streak'">
       <span class="v-flame">🔥</span>
       <div style="flex: 1">
         <div class="v-num" style="font-size: 20px">{{ data.streak_days }} kun seriya</div>
@@ -52,7 +57,7 @@ const goalPercent = computed(() => {
         <div class="meter"><i :style="{ width: goalPercent + '%' }"></i></div>
       </div>
 
-      <div class="tile gold">
+      <div class="tile gold tappable" @click="sheet = 'coins'">
         <span class="emoji">⭐</span>
         <div class="value">{{ data.coins ?? 0 }}</div>
         <div class="v-label" style="color: var(--gold-muted)">tanga toʼplandi</div>
@@ -122,10 +127,16 @@ const goalPercent = computed(() => {
         <div style="flex: 1"></div>
       </div>
     </div>
+    <CoinsSheet v-if="sheet === 'coins'" @close="sheet = null" />
+    <StreakSheet v-if="sheet === 'streak'" @close="sheet = null" />
   </div>
 </template>
 
 <style scoped>
+.tappable {
+  cursor: pointer;
+}
+
 .v-flame {
   font-size: 38px;
   line-height: 1;
