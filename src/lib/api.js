@@ -39,6 +39,25 @@ export const api = {
   me: () => request('GET', '/me'),
   onboard: (data) => request('POST', '/onboarding', data),
   updateMe: (data) => request('PATCH', '/me', data),
+  chooseRole: (role) => request('POST', '/me/role', { role }),
+
+  joinGroup: (code) => request('POST', '/groups/join', { code }),
+  myGroups: () => request('GET', '/groups/mine'),
+
+  teacher: {
+    dashboard: () => request('GET', '/teacher/dashboard'),
+    paths: () => request('GET', '/teacher/paths'),
+    createPath: (title, subtitle) => request('POST', '/teacher/paths', { title, subtitle }),
+    addStage: (pathId, title) => request('POST', `/teacher/paths/${pathId}/stages`, { title }),
+    stage: (id) => request('GET', `/teacher/stages/${id}`),
+    saveStage: (id, title, words) => request('PATCH', `/teacher/stages/${id}`, { title, words }),
+    groups: () => request('GET', '/teacher/groups'),
+    createGroup: (data) => request('POST', '/teacher/groups', data),
+    group: (id, stage) => request('GET', `/teacher/groups/${id}${stage ? `?stage=${stage}` : ''}`),
+    attachPath: (id, pathId) => request('PATCH', `/teacher/groups/${id}/path`, { path_id: pathId }),
+    approve: (memberId) => request('POST', `/teacher/members/${memberId}/approve`),
+    removeMember: (memberId) => request('DELETE', `/teacher/members/${memberId}`),
+  },
 
   dashboard: () => request('GET', '/dashboard'),
   coins: () => request('GET', '/coins'),

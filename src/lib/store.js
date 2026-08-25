@@ -49,6 +49,11 @@ export const store = {
     await this.refreshRoad()
   },
 
+  async setRole(role) {
+    const { user } = await api.chooseRole(role)
+    state.user = user
+  },
+
   async updateSettings(patch) {
     const { user } = await api.updateMe(patch)
     state.user = user

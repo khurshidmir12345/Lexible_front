@@ -1,17 +1,26 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import Onboarding from './components/onboarding/Onboarding.vue'
+import RolePicker from './components/onboarding/RolePicker.vue'
 import AppShell from './components/app/AppShell.vue'
+import TeacherShell from './components/teacher/TeacherShell.vue'
 import Toast from './components/ui/Toast.vue'
 import Mascot from './components/ui/Mascot.vue'
+import { computed } from 'vue'
 import { store } from './lib/store'
 
 const entered = ref(false)
+const roleChosen = ref(false)
+
+const isTeacher = computed(() => store.state.user?.role === 'teacher')
 
 onMounted(async () => {
   await store.boot()
-  // A player who already finished onboarding goes straight to the map.
+
+  // Anyone already set up goes straight in; the role question is only for
+  // someone opening the app for the first time.
   entered.value = Boolean(store.state.user?.onboarded)
+  roleChosen.value = entered.value
 })
 </script>
 
@@ -30,6 +39,13 @@ onMounted(async () => {
       <p class="splash-sub">{{ store.state.error }}</p>
       <button class="btn btn-primary retry" @click="() => location.reload()">Qayta urinish</button>
     </div>
+
+    <RolePicker
+      v-else-if="!roleChosen"
+      @chosen="(role) => { roleChosen = true; if (role === 'teacher') entered = true }"
+    />
+
+    <TeacherShell v-else-if="isTeacher" />
 
     <Onboarding v-else-if="!entered" @enter="entered = true" />
 
