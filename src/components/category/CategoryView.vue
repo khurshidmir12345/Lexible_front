@@ -6,6 +6,7 @@ import TestPicker from './TestPicker.vue'
 import WordDetail from './WordDetail.vue'
 import Modal from '../ui/Modal.vue'
 import TestRunner from '../test/TestRunner.vue'
+import { backIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -20,18 +21,26 @@ const loading = ref(true)
 
 const naming = ref(false)
 const titleDraft = ref('')
-
 const addingWords = ref(false)
 const detailWord = ref(null)
-const masteryModal = ref(null)      // { title, subtitle, mastery, mode }
+const masteryModal = ref(null)
 const scopeModal = ref(false)
 const picker = ref(false)
 const pendingScope = ref('all')
-const running = ref(null)           // { sessionId, questions }
+const running = ref(null)
 const removing = ref(null)
 
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
+
+const TYPE_LABELS = [
+  ['card', 'Karta'],
+  ['uz2en', 'U→E'],
+  ['en2uz', 'E→U'],
+  ['spell', 'Imlo'],
+  ['image', 'Rasm'],
+  ['match', 'Juft'],
+]
 
 const overall = computed(() =>
   words.value.length
@@ -41,24 +50,30 @@ const overall = computed(() =>
 
 const weakWords = computed(() => words.value.filter((w) => w.overall < learnedAt))
 
-const level = (value) => (value < midAt ? 'low' : value < learnedAt ? 'mid' : 'high')
+/** Bar colour tracks how solid that exercise is, matching the artboard. */
+function barColour(value) {
+  if (value >= learnedAt) return 'var(--green)'
+  if (value >= midAt) return '#8FD4AC'
+  if (value > 0) return 'var(--green-bar)'
+  return 'var(--line-3)'
+}
+
+const barHeight = (value) => `${Math.max((value / 100) * 52, 4)}px`
+
+const pillClass = (value) => (value >= learnedAt ? 'high' : value >= midAt ? 'mid' : 'low')
 
 async function load() {
   loading.value = true
-
   try {
     const data = await api.category(props.categoryId)
     category.value = data.category
     words.value = data.words
     masteryByType.value = data.mastery_by_type
 
-    // The stage arrives pre-filled with the player's daily goal; say so, so it
-    // does not look like words appeared from nowhere.
     if (data.auto_filled > 0) {
       store.toast(`✨ ${data.auto_filled} ta yangi soʼz tayyorlandi`)
     }
 
-    // A node with no name yet asks for one before showing anything else.
     if (!category.value.title) {
       titleDraft.value = ''
       naming.value = true
@@ -90,15 +105,10 @@ function cancelNaming() {
   emit('close')
 }
 
-function openWord(word) {
-  detailWord.value = word
-  telegram.haptic()
-}
-
 function openWordMastery(word) {
   masteryModal.value = {
     title: `${word.en} — ${word.overall}%`,
-    subtitle: 'Qaysi mashqlarni bilasiz / bilmaysiz',
+    subtitle: 'Qaysi mashqlarni bilasiz',
     mastery: word.mastery,
     mode: 'flags',
   }
@@ -107,7 +117,7 @@ function openWordMastery(word) {
 function openCategoryMastery() {
   masteryModal.value = {
     title: `${category.value.title} — ${overall.value}%`,
-    subtitle: 'Qaysi mashqlar zaif — mustahkamlash kerak',
+    subtitle: 'Qaysi mashqlar zaif',
     mastery: masteryByType.value,
     mode: 'bars',
   }
@@ -125,7 +135,9 @@ async function confirmRemove() {
 }
 
 function startTest() {
-  // Repeating a category offers to drill only the words still below threshold.
+  telegram.haptic()
+
+  // Repeating a category offers to drill only what is still weak.
   if (category.value.practiced && weakWords.value.length > 0) {
     scopeModal.value = true
     return
@@ -143,7 +155,6 @@ function chooseScope(scope) {
 
 async function begin(types) {
   picker.value = false
-
   try {
     const { session_id, questions } = await api.startTest(props.categoryId, types, pendingScope.value)
     running.value = { sessionId: session_id, questions }
@@ -154,7 +165,6 @@ async function begin(types) {
 
 async function onTestFinished(result) {
   running.value = null
-
   store.patchNode(props.categoryId, { progress: result.category_progress, practiced: true })
 
   if (result.unlocked_position) {
@@ -166,86 +176,83 @@ async function onTestFinished(result) {
   store.refreshDashboard().catch(() => {})
 }
 
+const initial = (word) => word.en.charAt(0).toLowerCase()
+
 onMounted(load)
 </script>
 
 <template>
-  <div class="overlay show">
-    <div class="bar">
-      <button class="back" @click="$emit('close')">‹</button>
-      <span class="title">{{ category?.title ?? 'Kategoriya' }}</span>
-    </div>
+  <div class="overlay show cat">
+    <header class="cat-head">
+      <button class="cat-back" @click="$emit('close')" v-html="backIcon"></button>
+      <div style="flex: 1">
+        <div class="cat-title">{{ category?.title ?? 'Kategoriya' }}</div>
+        <div class="cat-sub">{{ words.length }} ta soʼz</div>
+      </div>
+      <span class="cat-pct v-num">{{ overall }}%</span>
+    </header>
 
-    <div class="cat-body">
+    <div class="c-body">
       <template v-if="!loading && words.length">
-        <button class="start" @click="startTest">
-          <svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="#fff" /></svg>
-          Boshlash
-        </button>
-
-        <div class="cat-overall" @click="openCategoryMastery">
-          <div><b>Umumiy oʼzlashtirish</b><small>qaysi mashqlar zaif — bosing</small></div>
-          <span class="ov-pct" :class="`m-${level(overall)}`">{{ overall }}%</span>
+        <div class="actions">
+          <button class="btn btn-primary play" @click="startTest">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5v15l12-7.5z" /></svg>
+            Boshlash
+          </button>
+          <button class="vs" @click="store.toast('Duel keyingi bosqichda')">VS</button>
         </div>
 
-        <div class="cnt">{{ words.length }} ta soʼz</div>
-
-        <div class="wlist">
-          <div v-for="word in words" :key="word.id" class="witem">
-            <div class="winfo" @click="openWord(word)">
-              <div class="thumb">
-                <img v-if="word.icon" :src="word.icon" alt="" style="width: 34px; height: 34px" />
-                <template v-else>{{ word.emoji || '📘' }}</template>
-              </div>
-              <div class="wtext">
-                <b>{{ word.en }}</b>
-                <span>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}</span>
-              </div>
-            </div>
-            <button class="mast" :class="`m-${level(word.overall)}`" @click="openWordMastery(word)">
-              {{ word.overall }}%
-            </button>
-            <button class="wx" @click="removing = word">×</button>
+        <div class="panel" @click="openCategoryMastery">
+          <div class="panel-title">Test turlari boʼyicha</div>
+          <div class="bars">
+            <div
+              v-for="[key] in TYPE_LABELS"
+              :key="key"
+              :style="{ height: barHeight(masteryByType[key] ?? 0), background: barColour(masteryByType[key] ?? 0) }"
+            ></div>
+          </div>
+          <div class="bar-labels">
+            <span v-for="[key, label] in TYPE_LABELS" :key="key">{{ label }}</span>
           </div>
         </div>
 
-        <button class="addmore" @click="addingWords = true">+ Yana lugʼat qoʼshish</button>
+        <div class="word-card">
+          <div v-for="word in words" :key="word.id" class="word-row">
+            <span class="tile-letter" @click="detailWord = word">{{ initial(word) }}</span>
+            <span class="word-text" @click="detailWord = word">
+              <b>{{ word.en }}</b>
+              <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}</i>
+            </span>
+            <button class="pct-pill" :class="pillClass(word.overall)" @click="openWordMastery(word)">
+              {{ word.overall }}%
+            </button>
+            <button class="drop" @click="removing = word">×</button>
+          </div>
+        </div>
+
+        <button class="add-more" @click="addingWords = true">+ Yana lugʼat qoʼshish</button>
       </template>
 
-      <div v-else-if="!loading" class="empty">
-        <div class="etile">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9bb3a6" stroke-width="2.5" stroke-linecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </div>
+      <div v-else-if="!loading" class="cat-empty">
+        <div class="empty-tile">📖</div>
         <h3>Soʼz topilmadi</h3>
         <p>Lugʼatdagi soʼzlar tugadi — oʼzingiz qidirib qoʼshishingiz mumkin.</p>
-        <button class="btn btn-primary" style="max-width: 240px" @click="addingWords = true">
-          Lugʼat qoʼshish
-        </button>
+        <button class="btn btn-primary" @click="addingWords = true">Lugʼat qoʼshish</button>
       </div>
     </div>
 
-    <!-- Naming a fresh node -->
-    <Modal
-      :open="naming"
-      title="Kategoriyaga nom bering"
-      text="Avval shu kategoriya uchun nom yozing."
-    >
-      <input v-model="titleDraft" placeholder="Masalan: Maktab jihozlari" autocomplete="off" />
+    <Modal :open="naming" title="Kategoriyaga nom bering" text="Bu bosqichga nom yozing.">
+      <input v-model="titleDraft" class="modal-input" placeholder="Masalan: Taomlar" autocomplete="off" />
       <template #actions>
         <button class="btn btn-soft" @click="cancelNaming">Bekor</button>
-        <button class="btn btn-primary" :disabled="titleDraft.trim().length < 2" @click="saveTitle">
-          Saqlash
-        </button>
+        <button class="btn btn-primary" :disabled="titleDraft.trim().length < 2" @click="saveTitle">Saqlash</button>
       </template>
     </Modal>
 
-    <!-- Removing a word -->
     <Modal
       :open="Boolean(removing)"
       title="Oʼchirilsinmi?"
-      :text="removing ? `&quot;${removing.en}&quot; soʼzini roʼyxatdan oʼchirmoqchimisiz?` : ''"
+      :text="removing ? `«${removing.en}» soʼzi roʼyxatdan olib tashlanadi.` : ''"
     >
       <template #actions>
         <button class="btn btn-soft" @click="removing = null">Bekor</button>
@@ -253,18 +260,13 @@ onMounted(load)
       </template>
     </Modal>
 
-    <!-- All words or only the weak ones -->
-    <Modal
-      :open="scopeModal"
-      title="Qaytadan mashq"
-      text="Bu kategoriyani avval ishlagansiz. Nimani takrorlaymiz?"
-    >
-      <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 14px">
-        <button class="scope-opt" @click="chooseScope('all')">
-          <b>Hammasi</b><span>{{ words.length }} ta soʼzni qaytarish</span>
+    <Modal :open="scopeModal" title="Qaytadan mashq" text="Bu bosqichni avval ishlagansiz.">
+      <div class="scope-list">
+        <button class="scope" @click="chooseScope('all')">
+          <b>Hammasi</b><i>{{ words.length }} ta soʼzni qaytarish</i>
         </button>
-        <button class="scope-opt" @click="chooseScope('wrong')">
-          <b>Faqat xatolar</b><span>{{ weakWords.length }} ta zaif soʼz ({{ learnedAt }}% dan past)</span>
+        <button class="scope" @click="chooseScope('wrong')">
+          <b>Faqat zaiflari</b><i>{{ weakWords.length }} ta soʼz ({{ learnedAt }}% dan past)</i>
         </button>
       </div>
       <template #actions>
@@ -272,12 +274,8 @@ onMounted(load)
       </template>
     </Modal>
 
-    <TestPicker
-      :open="picker"
-      @close="picker = false"
-      @start="begin"
-      @duel="() => { picker = false; store.toast('⚔️ Duel keyingi bosqichda ishga tushadi') }"
-    />
+    <TestPicker :open="picker" @close="picker = false" @start="begin"
+      @duel="() => { picker = false; store.toast('Duel keyingi bosqichda') }" />
 
     <WordDetail :word="detailWord" @close="detailWord = null" />
 
@@ -296,7 +294,6 @@ onMounted(load)
       :category-id="categoryId"
       :chosen="words.map((w) => w.id)"
       @close="() => { addingWords = false; load() }"
-      @changed="() => {}"
     />
 
     <TestRunner
@@ -308,3 +305,295 @@ onMounted(load)
     />
   </div>
 </template>
+
+<style scoped>
+.cat {
+  background: var(--canvas);
+}
+
+.cat-head {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 22px 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--wash);
+  flex: none;
+}
+
+.cat-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.cat-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.cat-sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.cat-pct {
+  font-size: 17px;
+  color: var(--green);
+}
+
+.c-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.play {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vs {
+  width: 52px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 14px;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: .5px;
+  cursor: pointer;
+}
+
+.panel-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  height: 52px;
+}
+
+.bars > div {
+  flex: 1;
+  border-radius: 5px;
+}
+
+.bar-labels {
+  display: flex;
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.bar-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.word-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--wash);
+}
+
+.word-row:last-child {
+  border-bottom: none;
+}
+
+.tile-letter {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--wash-2);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.word-text {
+  flex: 1;
+  cursor: pointer;
+}
+
+.word-text b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.word-text i {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.pct-pill {
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pct-pill.high {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.pct-pill.mid {
+  background: #FFF6E3;
+  color: var(--gold);
+}
+
+.pct-pill.low {
+  background: var(--red-soft);
+  color: var(--red-dark);
+}
+
+.drop {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--faint);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.add-more {
+  border: 1px dashed var(--line-4);
+  background: none;
+  border-radius: 14px;
+  padding: 13px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-tile {
+  font-size: 44px;
+  margin-bottom: 4px;
+}
+
+.cat-empty h3 {
+  font-family: 'Sora', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cat-empty p {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 260px;
+  margin-bottom: 10px;
+}
+
+.modal-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 15px;
+  margin-top: 12px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  outline: none;
+}
+
+.modal-input:focus {
+  border-color: var(--green);
+}
+
+.scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.scope {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 15px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+}
+
+.scope b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.scope i {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+}
+</style>
