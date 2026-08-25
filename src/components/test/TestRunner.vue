@@ -10,6 +10,8 @@ const props = defineProps({
   questions: Array,
   /** In a duel the header becomes a live scoreboard and there is no solo result. */
   duel: { type: Object, default: null },
+  /** A competition ends on the class board, not on the solo result screen. */
+  competition: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['finished', 'exit'])
@@ -243,16 +245,18 @@ async function finish() {
   stopSpeech()
 
   try {
-    const res = await api.finishTest(props.sessionId, Date.now() - startedAt)
+    const elapsed = Date.now() - startedAt
+    const res = await api.finishTest(props.sessionId, elapsed)
     telegram.notify('success')
 
-    // A duel has its own result screen, and the score has to reach the rival.
-    if (props.duel) {
-      emit('finished', { ...res, duration_ms: Date.now() - startedAt })
+    // A duel and a competition both have their own result screen, and the
+    // score has to reach the other players.
+    if (props.duel || props.competition) {
+      emit('finished', { ...res, duration_ms: elapsed })
       return
     }
 
-    result.value = res
+    result.value = { ...res, duration_ms: elapsed }
   } catch (error) {
     store.toast(error.message)
     emit('exit')
@@ -266,11 +270,24 @@ function close() {
 }
 
 const verdict = computed(() => {
-  const accuracy = result.value?.accuracy ?? 0
+  const res = result.value
+  const accuracy = res?.accuracy ?? 0
+
+  // An exam has a verdict, not a grade: it either opens the next stage or not.
+  if (res?.is_exam) {
+    return res.exam_passed
+      ? 'Imtihondan oʼtdingiz! 🎉'
+      : `Imtihon oʼtilmadi — kamida ${res.pass_mark}% kerak`
+  }
+
   if (accuracy >= 90) return 'Test tugadi — ajoyib!'
   if (accuracy >= 70) return 'Test tugadi — yaxshi natija'
   return 'Test tugadi — mashq davom etsin'
 })
+
+/** Green for a pass, red for a fail — the ring is the first thing read. */
+const ringColor = computed(() =>
+  result.value?.is_exam && !result.value.exam_passed ? 'var(--red)' : 'var(--green)')
 
 onMounted(loadStage)
 onBeforeUnmount(stopSpeech)
@@ -284,7 +301,7 @@ onBeforeUnmount(stopSpeech)
         <svg width="132" height="132" viewBox="0 0 132 132">
           <circle cx="66" cy="66" r="58" fill="none" stroke="var(--line-3)" stroke-width="12" />
           <circle
-            cx="66" cy="66" r="58" fill="none" stroke="var(--green)" stroke-width="12"
+            cx="66" cy="66" r="58" fill="none" :stroke="ringColor" stroke-width="12"
             stroke-linecap="round" transform="rotate(-90 66 66)"
             :stroke-dasharray="`${(result.accuracy / 100) * 364} 364`"
           />
@@ -306,14 +323,20 @@ onBeforeUnmount(stopSpeech)
           <span>Seriya</span>
           <b>{{ result.streak_days }} kun 🔥</b>
         </div>
-        <div class="res-row">
+        <div v-if="result.is_exam" class="res-row">
+          <span>Oʼtish balli</span>
+          <b>{{ result.pass_mark }}%</b>
+        </div>
+        <div v-else class="res-row">
           <span>Oʼzlashtirish</span>
           <b>{{ result.category_progress }}%</b>
         </div>
       </div>
 
       <div class="res-foot">
-        <button class="btn btn-primary" @click="close">Davom etish</button>
+        <button class="btn btn-primary" @click="close">
+          {{ result.is_exam && !result.exam_passed ? 'Qaytadan urinish' : 'Davom etish' }}
+        </button>
       </div>
     </div>
 

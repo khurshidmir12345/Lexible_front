@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import Modal from '../ui/Modal.vue'
+import CompetitionLobby from '../competition/CompetitionLobby.vue'
 import { backIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -14,6 +15,7 @@ const loading = ref(true)
 const stage = ref(null)          // null = overall
 const attaching = ref(false)
 const paths = ref([])
+const lobbyId = ref(null)
 
 async function load() {
   loading.value = true
@@ -69,6 +71,19 @@ async function attach(pathId) {
 function pickStage(id) {
   stage.value = id
   load()
+}
+
+/** Opens a live contest over the stage currently in view. */
+async function openCompetition() {
+  if (!stage.value) return
+
+  telegram.haptic()
+  try {
+    const { competition } = await api.teacher.openCompetition(props.groupId, stage.value)
+    lobbyId.value = competition.id
+  } catch (error) {
+    store.toast(error.message)
+  }
 }
 
 function copyCode() {
@@ -141,6 +156,11 @@ onMounted(load)
           </button>
         </div>
 
+        <button v-if="stage" class="vs-start" @click="openCompetition">
+          <span class="vs-badge">VS</span>
+          Shu bosqichda oʼyin boshlash
+        </button>
+
         <div v-if="data.leaderboard.length" class="panel rows">
           <div v-for="row in data.leaderboard" :key="row.id" class="row">
             <span class="rank" :class="{ top: row.rank <= 3 }">{{ row.rank }}</span>
@@ -156,6 +176,14 @@ onMounted(load)
         <p v-else class="note">Hali oʼquvchi qoʼshilmagan.</p>
       </template>
     </div>
+
+    <CompetitionLobby
+      v-if="lobbyId"
+      :competition-id="lobbyId"
+      :group-id="groupId"
+      :stage-id="stage"
+      @close="lobbyId = null"
+    />
 
     <Modal :open="attaching" title="Yoʼlni tanlang" text="Bosqichlar oʼquvchilarga koʼchiriladi.">
       <div class="path-list">
@@ -174,6 +202,31 @@ onMounted(load)
 
 <style scoped>
 .detail { background: var(--canvas); z-index: 18; }
+
+.vs-start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin: 4px 0 14px;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  background: var(--brand);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.vs-badge {
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .22);
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
 
 .detail-head {
   display: flex; align-items: center; gap: 13px;

@@ -4,7 +4,10 @@ import Dashboard from './Dashboard.vue'
 import RoadMap from './RoadMap.vue'
 import Profile from './Profile.vue'
 import CategoryView from '../category/CategoryView.vue'
+import ExamSheet from '../category/ExamSheet.vue'
+import TestRunner from '../test/TestRunner.vue'
 import DuelFlow from '../duel/DuelFlow.vue'
+import CompetitionFlow from '../competition/CompetitionFlow.vue'
 import Notifications from './Notifications.vue'
 import { api } from '../../lib/api'
 import { NavIcon, bellIcon } from '../../lib/icons2'
@@ -13,7 +16,10 @@ import { telegram } from '../../lib/telegram'
 
 const tab = ref('dash')
 const openCategoryId = ref(null)
+const examNode = ref(null)
+const examRun = ref(null)
 const duelCode = ref(null)
+const competitionCode = ref(null)
 const showingNotifications = ref(false)
 const unread = ref(0)
 
@@ -42,14 +48,41 @@ function switchTab(next) {
   telegram.haptic()
 }
 
+/** The exam sheet has been confirmed — the checkpoint round starts. */
+async function startExam(node) {
+  try {
+    const { session_id, questions } = await api.startTest(node.id, [])
+    examNode.value = null
+    examRun.value = { sessionId: session_id, questions }
+  } catch (error) {
+    store.toast(error.message ?? 'Imtihonni boshlab boʼlmadi')
+  }
+}
+
+async function finishExam(result) {
+  examRun.value = null
+  // Passing opens the next node, so the map has to be re-read either way.
+  await store.refreshRoad()
+  if (result?.exam_passed) telegram.notify('success')
+}
+
 /**
- * A friend arrives through `t.me/bot/game?startapp=duel_ABC123`. Telegram hands
- * that payload to the page, so joining is the first thing that happens after
- * the app boots.
+ * A friend arrives through `t.me/bot/game?startapp=duel_ABC123`, a whole class
+ * through `?startapp=comp_VS8K3J`. Telegram hands that payload to the page, so
+ * joining is the first thing that happens after the app boots.
  */
 async function acceptInvite() {
   const param = telegram.startParam
-  if (!param?.startsWith('duel_')) return
+  if (!param) return
+
+  if (param.startsWith('comp_')) {
+    // The competition screen does the joining itself, so it can show why a
+    // refusal happened rather than swallowing it into a toast.
+    competitionCode.value = param.slice(5).toUpperCase()
+    return
+  }
+
+  if (!param.startsWith('duel_')) return
 
   const code = param.slice(5).toUpperCase()
 
@@ -97,7 +130,7 @@ watch(tab, (next) => {
     <div class="tabs">
       <section class="tab" :class="{ active: tab === 'dash' }"><Dashboard /></section>
       <section class="tab" :class="{ active: tab === 'road' }">
-        <RoadMap @open="(id) => (openCategoryId = id)" />
+        <RoadMap @open="(id) => (openCategoryId = id)" @exam="(node) => (examNode = node)" />
       </section>
       <section class="tab" :class="{ active: tab === 'profile' }">
         <div class="scroll"><Profile /></div>
@@ -123,7 +156,23 @@ watch(tab, (next) => {
       @close="openCategoryId = null"
     />
 
+    <ExamSheet :node="examNode" @close="examNode = null" @start="startExam" />
+
+    <TestRunner
+      v-if="examRun"
+      :session-id="examRun.sessionId"
+      :questions="examRun.questions"
+      @finished="finishExam"
+      @exit="examRun = null"
+    />
+
     <DuelFlow v-if="duelCode" :code="duelCode" @close="duelCode = null" />
+
+    <CompetitionFlow
+      v-if="competitionCode"
+      :code="competitionCode"
+      @close="competitionCode = null"
+    />
 
     <Notifications
       v-if="showingNotifications"

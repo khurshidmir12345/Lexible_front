@@ -5,7 +5,7 @@ import GroupLeaderboard from '../group/GroupLeaderboard.vue'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
-const emit = defineEmits(['open'])
+const emit = defineEmits(['open', 'exam'])
 
 // Geometry from the artboard: 88px nodes inset 26px from either edge,
 // stacked 96px apart, alternating sides.
@@ -72,6 +72,12 @@ function open(node) {
   }
 
   telegram.haptic()
+
+  if (node.type === 'exam') {
+    emit('exam', node)
+    return
+  }
+
   emit('open', node.id)
 }
 

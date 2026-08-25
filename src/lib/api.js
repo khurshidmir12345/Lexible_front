@@ -57,6 +57,13 @@ export const api = {
     attachPath: (id, pathId) => request('PATCH', `/teacher/groups/${id}/path`, { path_id: pathId }),
     approve: (memberId) => request('POST', `/teacher/members/${memberId}/approve`),
     removeMember: (memberId) => request('DELETE', `/teacher/members/${memberId}`),
+
+    openCompetition: (groupId, stageId) =>
+      request('POST', `/teacher/groups/${groupId}/competitions`, { path_stage_id: stageId }),
+    competition: (id) => request('GET', `/teacher/competitions/${id}`),
+    startCompetition: (id) => request('POST', `/teacher/competitions/${id}/start`),
+    closeCompetition: (id) => request('POST', `/teacher/competitions/${id}/close`),
+    competitionResults: (id) => request('GET', `/teacher/competitions/${id}/results`),
   },
 
   dashboard: () => request('GET', '/dashboard'),
@@ -81,6 +88,15 @@ export const api = {
   finishDuel: (code, score, durationMs) =>
     request('POST', `/duels/${code}/finish`, { score, duration_ms: durationMs }),
 
+  // Competitions — the teacher drives the lobby, students follow the link.
+  competition: (code) => request('GET', `/competitions/${code}`),
+  joinCompetition: (code) => request('POST', `/competitions/${code}/join`),
+  competitionSession: (code) => request('POST', `/competitions/${code}/session`),
+  finishCompetition: (code, score, total, durationMs) =>
+    request('POST', `/competitions/${code}/finish`, { score, total, duration_ms: durationMs }),
+  myCompetitionResults: (code) => request('GET', `/competitions/${code}/results`),
+
+  examBriefing: (categoryId) => request('GET', `/categories/${categoryId}/exam`),
   startTest: (categoryId, types, scope) =>
     request('POST', `/categories/${categoryId}/tests`, { types, scope }),
   answer: (sessionId, data) => request('POST', `/tests/${sessionId}/answer`, data),
