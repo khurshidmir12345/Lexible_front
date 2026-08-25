@@ -128,6 +128,9 @@ body {
 }
 
 .app {
+    /* Text inherits from here, not from <body> — otherwise night mode would
+       leave every unstyled string in the light theme's ink. */
+    color: var(--ink);
     position: relative;
     width: 100%;
     max-width: 430px;
