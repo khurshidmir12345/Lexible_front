@@ -140,7 +140,7 @@ async function finish() {
       <h1 class="ob-title" style="text-align: center">Tayyor, {{ firstName }}!</h1>
       <p class="ob-sub" style="text-align: center">Birinchi kategoriyani yarating va boshlang.</p>
       <div class="ob-summary">
-        <div v-for="[label, value] in summary" :key="label" class="ob-ob-summary-row">
+        <div v-for="[label, value] in summary" :key="label" class="ob-summary-row">
           <span>{{ label }}</span><b>{{ value }}</b>
         </div>
       </div>
