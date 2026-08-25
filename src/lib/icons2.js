@@ -31,3 +31,15 @@ export const StepIcon = {
 }
 
 export const backIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`
+
+/** Per-exercise icons and tints used in the mastery breakdown. */
+export const ExerciseIcon = {
+  card: { bg: '#E9F7EF', color: '#17A45C', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="3.5" width="13" height="13" rx="3"/><path d="M16.5 16.5v1a3 3 0 0 1-3 3h-7a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3h1"/></svg>` },
+  uz2en: { bg: '#EDF4FE', color: '#2E7CF6', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M11.5 3.5L15 7l-3.5 3.5"/><path d="M20 17H9M12.5 13.5L9 17l3.5 3.5"/></svg>` },
+  en2uz: { bg: '#EDF4FE', color: '#2E7CF6', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H9M12.5 3.5L9 7l3.5 3.5"/><path d="M4 17h11M11.5 13.5L15 17l-3.5 3.5"/></svg>` },
+  spell: { bg: '#FFF6E3', color: '#B7841F', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6.5" width="19" height="11" rx="3"/><path d="M6.5 10.5h.01M10 10.5h.01M13.5 10.5h.01M17 10.5h.01M7.5 14h9"/></svg>` },
+  image: { bg: '#F4EEFE', color: '#7D5AD6', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15l-4.5-4-8 7.5"/></svg>` },
+  match: { bg: '#E6F7F2', color: '#1AA37A', svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.5" r="2.4"/><circle cx="18" cy="17.5" r="2.4"/><path d="M8.4 6.5H14a3.5 3.5 0 0 1 3.5 3.5v5.1"/></svg>` },
+}
+
+export const speakerIcon2 = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>`
