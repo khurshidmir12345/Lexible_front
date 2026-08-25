@@ -1,5 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import AddPathSheet from '../group/AddPathSheet.vue'
+import GroupLeaderboard from '../group/GroupLeaderboard.vue'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
@@ -13,9 +15,18 @@ const GAP = 96
 const TOP = 104
 const WIDTH = 390
 
+const adding = ref(false)
+const showingBoard = ref(false)
+
+const paths = computed(() => store.state.paths)
+const activePath = computed(() => store.state.activePath)
+const currentPath = computed(() => paths.value.find((p) => p.id === activePath.value))
+const isGroupPath = computed(() => currentPath.value?.kind === 'group')
+
 /** Newest node on top, so the path reads as climbing away from the start. */
 const nodes = computed(() =>
   [...store.state.road]
+    .filter((node) => (node.path ?? 'personal') === activePath.value)
     .sort((a, b) => b.position - a.position)
     .map((node, index) => ({
       ...node,
@@ -96,20 +107,36 @@ watch(() => store.state.road.length, focusCurrent)
 
 <template>
   <div class="road">
-    <!-- Paths: the personal one today, group paths once they exist. -->
+    <!-- The player's own path, plus one per group they belong to. -->
     <div class="path-tabs">
-      <span class="path-tab on">
-        Yoʼl
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 20l4.5-1L20 7.5a2.1 2.1 0 0 0-3-3L5.5 16z" />
+      <button
+        v-for="path in paths"
+        :key="path.id"
+        class="path-tab"
+        :class="{ on: activePath === path.id, group: path.kind === 'group' }"
+        @click="store.selectPath(path.id)"
+      >
+        <svg v-if="path.kind === 'group'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
         </svg>
-      </span>
-      <button class="path-add" @click="store.toast('Guruh yoʼllari keyingi bosqichda')">
+        {{ path.title }}
+      </button>
+
+      <button class="path-add" @click="adding = true">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#66736B" stroke-width="2.2" stroke-linecap="round">
           <path d="M12 5v14M5 12h14" />
         </svg>
       </button>
     </div>
+
+    <!-- Whose path this is, and where the player stands in it -->
+    <button v-if="isGroupPath" class="group-bar" @click="showingBoard = true">
+      <span class="group-who">
+        <b>{{ currentPath.teacher }}</b>
+        <i>{{ currentPath.subtitle ?? 'guruh yoʼli' }}</i>
+      </span>
+      <span class="group-cta">Guruh statistikasi ›</span>
+    </button>
 
     <div ref="canvasEl" class="canvas">
       <div class="v-inner" :style="{ height: canvasHeight + 'px' }">
@@ -130,7 +157,12 @@ watch(() => store.state.road.length, focusCurrent)
             SIZ SHU YERDASIZ
           </span>
 
-          <button class="node" :class="[node.status, { exam: node.type === 'exam', create: isCreate(node) }]" :style="style(node)" @click="open(node)">
+          <button
+            class="node"
+            :class="[node.status, { exam: node.type === 'exam', create: isCreate(node), taught: node.from_group }]"
+            :style="style(node)"
+            @click="open(node)"
+          >
             <!-- Fresh node the player has not named yet -->
             <template v-if="isCreate(node)">
               <span class="ring dashed">
@@ -173,6 +205,18 @@ watch(() => store.state.road.length, focusCurrent)
         </template>
       </div>
     </div>
+
+    <AddPathSheet
+      v-if="adding"
+      @close="adding = false"
+      @joined="() => { adding = false; store.refreshRoad() }"
+    />
+
+    <GroupLeaderboard
+      v-if="showingBoard && isGroupPath"
+      :group-id="activePath"
+      @close="showingBoard = false"
+    />
   </div>
 </template>
 
@@ -205,9 +249,56 @@ watch(() => store.state.road.length, focusCurrent)
   white-space: nowrap;
 }
 
+.path-tab {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+}
+
 .path-tab.on {
   background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
+}
+
+/* A teacher's path is gold, so it never looks like the player's own. */
+.path-tab.group.on {
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  border-color: var(--gold-deep);
+  color: #6B4E00;
+}
+
+.group-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 22px 10px;
+  padding: 11px 14px;
+  border: 1px solid #F0E3C2;
+  background: #FFFBF0;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+  text-align: left;
+}
+
+.group-who { flex: 1; }
+.group-who b { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.group-who i { display: block; font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--gold-muted); }
+
+.group-cta { font-size: 12px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+
+.node.taught.in_progress {
+  background: linear-gradient(165deg, #E8A13A, #C97F1E);
+  box-shadow: 0 5px 0 #A9670F;
+}
+
+.node.taught.completed {
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  box-shadow: 0 5px 0 var(--gold-deep);
+  color: #6B4E00;
 }
 
 .path-add {

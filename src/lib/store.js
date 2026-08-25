@@ -8,6 +8,8 @@ const state = reactive({
 
   user: null,
   road: [],
+  paths: [],
+  activePath: 'personal',
   dashboard: null,
 
   toast: null,
@@ -36,7 +38,18 @@ export const store = {
   },
 
   async refreshRoad() {
-    state.road = (await api.road()).nodes
+    const { nodes, paths } = await api.road()
+    state.road = nodes
+    state.paths = paths
+
+    // A path the player just left should not stay selected.
+    if (!paths.some((path) => path.id === state.activePath)) {
+      state.activePath = 'personal'
+    }
+  },
+
+  selectPath(id) {
+    state.activePath = id
   },
 
   async refreshDashboard() {
