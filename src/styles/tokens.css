@@ -77,8 +77,10 @@
     --green-bar: #2E4237;
 
     --gold: #E8B54A;
-    --gold-ink: #F6E3B4;
-    --gold-muted: #C6A15C;
+    /* The gold tile keeps its light gradient in night mode, so the ink on it
+       must stay dark — only the gold used *as* text is lightened. */
+    --gold-ink: #5B4300;
+    --gold-muted: #7A5E1A;
 
     --red: #F0656A;
     --red-dark: #F78C90;
