@@ -88,9 +88,9 @@ watch(tab, (next) => {
         <div class="greeting">{{ TITLES[tab]() }}</div>
         <div class="v-sub">{{ SUBTITLES[tab]() }}</div>
       </div>
-      <button class="icon-btn" aria-label="Bildirishnomalar">
+      <button class="icon-btn" aria-label="Bildirishnomalar" @click="showingNotifications = true">
         <span v-html="bellIcon"></span>
-        <span class="v-dot"></span>
+        <span v-if="unread" class="v-dot"></span>
       </button>
     </header>
 
