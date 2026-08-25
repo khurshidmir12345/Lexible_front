@@ -26,7 +26,7 @@ const goalPercent = computed(() => {
   <div v-if="data" class="scroll">
     <!-- Streak -->
     <div class="panel panel-row" style="padding: 13px 16px">
-      <span class="flame">🔥</span>
+      <span class="v-flame">🔥</span>
       <div style="flex: 1">
         <div class="v-num" style="font-size: 20px">{{ data.streak_days }} kun seriya</div>
         <div class="v-sub-line">rekordingiz — {{ user.best_streak }} kun 🏅</div>
@@ -102,22 +102,22 @@ const goalPercent = computed(() => {
         <span class="v-num accent">{{ data.duel.win_rate }}% gʼalaba</span>
       </div>
       <div style="display: flex; gap: 11px">
-        <div class="duel-half win">
-          <span class="duel-emoji">🏆</span>
+        <div class="v-duel-half v-win">
+          <span class="v-duel-emoji">🏆</span>
           <div>
             <div class="v-num" style="font-size: 20px; color: var(--green-dark)">{{ data.duel.wins }}</div>
             <div class="duel-v-label">Gʼalaba</div>
           </div>
         </div>
-        <div class="duel-half loss">
-          <span class="duel-emoji">🚩</span>
+        <div class="v-duel-half v-loss">
+          <span class="v-duel-emoji">🚩</span>
           <div>
             <div class="v-num" style="font-size: 20px; color: var(--red-dark)">{{ data.duel.losses }}</div>
             <div class="duel-v-label">Magʼlubiyat</div>
           </div>
         </div>
       </div>
-      <div class="duel-meter">
+      <div class="v-duel-meter">
         <div :style="{ width: data.duel.win_rate + '%' }"></div>
         <div style="flex: 1"></div>
       </div>
@@ -126,7 +126,7 @@ const goalPercent = computed(() => {
 </template>
 
 <style scoped>
-.flame {
+.v-flame {
   font-size: 38px;
   line-height: 1;
   filter: drop-shadow(0 4px 6px rgba(199, 84, 26, .35));
@@ -210,7 +210,7 @@ const goalPercent = computed(() => {
   margin-bottom: 6px;
 }
 
-.duel-half {
+.v-duel-half {
   flex: 1;
   border-radius: 14px;
   padding: 9px 12px;
@@ -219,29 +219,29 @@ const goalPercent = computed(() => {
   gap: 11px;
 }
 
-.duel-half.win {
+.v-duel-half.v-win {
   background: var(--green-soft);
   border: 1px solid var(--green-pale);
 }
 
-.duel-half.loss {
+.v-duel-half.v-loss {
   background: var(--red-soft);
   border: 1px solid var(--red-line);
 }
 
-.duel-emoji {
+.v-duel-emoji {
   font-size: 26px;
   line-height: 1;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .15));
 }
 
-.duel-label {
+.v-duel-label {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
 }
 
-.duel-meter {
+.v-duel-meter {
   display: flex;
   height: 6px;
   border-radius: var(--r-pill);
@@ -250,12 +250,12 @@ const goalPercent = computed(() => {
   gap: 2px;
 }
 
-.duel-meter > div:first-child {
+.v-duel-meter > div:first-child {
   background: var(--green);
   border-radius: var(--r-pill);
 }
 
-.duel-meter > div:last-child {
+.v-duel-meter > div:last-child {
   background: #F1C0C3;
   border-radius: var(--r-pill);
 }

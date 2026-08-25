@@ -112,7 +112,7 @@ watch(() => store.state.road.length, focusCurrent)
     </div>
 
     <div ref="canvasEl" class="canvas">
-      <div class="inner" :style="{ height: canvasHeight + 'px' }">
+      <div class="v-inner" :style="{ height: canvasHeight + 'px' }">
         <svg class="links" :viewBox="`0 0 ${WIDTH} ${canvasHeight}`" preserveAspectRatio="none" fill="none">
           <path
             v-for="(d, i) in connectors"
@@ -167,7 +167,7 @@ watch(() => store.state.road.length, focusCurrent)
                 IMTIHON{{ node.status === 'completed' ? ' ✓' : '' }}
               </span>
               <span v-else-if="node.status === 'completed'" class="pill">✓ BAJARILDI</span>
-              <span v-else-if="node.status === 'in_progress'" class="pct v-num">{{ node.progress }}%</span>
+              <span v-else-if="node.status === 'in_progress'" class="v-pct v-num">{{ node.progress }}%</span>
             </template>
           </button>
         </template>
@@ -228,7 +228,7 @@ watch(() => store.state.road.length, focusCurrent)
   background: #F3F1EA;
 }
 
-.inner {
+.v-inner {
   position: relative;
   width: 100%;
 }
@@ -359,7 +359,7 @@ watch(() => store.state.road.length, focusCurrent)
   letter-spacing: .3px;
 }
 
-.pct {
+.v-pct {
   font-size: 12px;
   text-align: center;
   margin-top: auto;

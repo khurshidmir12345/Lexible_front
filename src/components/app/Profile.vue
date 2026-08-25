@@ -84,45 +84,45 @@ function invite() {
     <div class="section">SOZLAMALAR</div>
 
     <div class="rows">
-      <button class="row" @click="openEdit('lang')">
-        <span class="row-ic" v-html="RowIcon.globe"></span>
-        <span class="row-t">Til</span>
-        <span class="row-v">{{ languageName(user.native_lang) }}</span>
-        <span class="row-c" v-html="RowIcon.chevron"></span>
+      <button class="v-row" @click="openEdit('lang')">
+        <span class="v-row-ic" v-html="RowIcon.globe"></span>
+        <span class="v-row-t">Til</span>
+        <span class="v-row-v">{{ languageName(user.native_lang) }}</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
-      <button class="row" @click="openEdit('days')">
-        <span class="row-ic" v-html="RowIcon.calendar"></span>
-        <span class="row-t">Yodlash kunlari</span>
-        <span class="row-v">{{ daysLabel }}</span>
-        <span class="row-c" v-html="RowIcon.chevron"></span>
+      <button class="v-row" @click="openEdit('days')">
+        <span class="v-row-ic" v-html="RowIcon.calendar"></span>
+        <span class="v-row-t">Yodlash kunlari</span>
+        <span class="v-row-v">{{ daysLabel }}</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
-      <button class="row" @click="openEdit('time')">
-        <span class="row-ic" v-html="RowIcon.clock"></span>
-        <span class="row-t">Eslatish vaqti</span>
-        <span class="row-v">{{ user.reminder_at ?? 'tanlanmagan' }}</span>
-        <span class="row-c" v-html="RowIcon.chevron"></span>
+      <button class="v-row" @click="openEdit('time')">
+        <span class="v-row-ic" v-html="RowIcon.clock"></span>
+        <span class="v-row-t">Eslatish vaqti</span>
+        <span class="v-row-v">{{ user.reminder_at ?? 'tanlanmagan' }}</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
-      <div class="row">
-        <span class="row-ic" v-html="RowIcon.moon"></span>
-        <span class="row-t">Tungi rejim</span>
-        <button class="switch" :class="{ on: user.dark_mode }" @click="toggleDark"><i></i></button>
+      <div class="v-row">
+        <span class="v-row-ic" v-html="RowIcon.moon"></span>
+        <span class="v-row-t">Tungi rejim</span>
+        <button class="v-switch" :class="{ on: user.dark_mode }" @click="toggleDark"><i></i></button>
       </div>
 
-      <button class="row" @click="showLearned = true">
-        <span class="row-ic" v-html="RowIcon.book"></span>
-        <span class="row-t">Yodlangan soʼzlar</span>
-        <span class="row-v">{{ user.words_learned }} ta</span>
-        <span class="row-c" v-html="RowIcon.chevron"></span>
+      <button class="v-row" @click="showLearned = true">
+        <span class="v-row-ic" v-html="RowIcon.book"></span>
+        <span class="v-row-t">Yodlangan soʼzlar</span>
+        <span class="v-row-v">{{ user.words_learned }} ta</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
-      <button class="row" @click="invite">
-        <span class="row-ic" v-html="RowIcon.gift"></span>
-        <span class="row-t">Doʼstlarni taklif qilish</span>
-        <span class="row-v gold">+50 tanga</span>
-        <span class="row-c" v-html="RowIcon.chevron"></span>
+      <button class="v-row" @click="invite">
+        <span class="v-row-ic" v-html="RowIcon.gift"></span>
+        <span class="v-row-t">Doʼstlarni taklif qilish</span>
+        <span class="v-row-v gold">+50 tanga</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
     </div>
 
@@ -133,7 +133,7 @@ function invite() {
         <b>Lexible Premium</b>
         <i>AI talaffuz · cheksiz soʼzlar</i>
       </span>
-      <span class="row-c" style="color: rgba(255,255,255,.6)" v-html="RowIcon.chevron"></span>
+      <span class="v-row-c" style="color: rgba(255,255,255,.6)" v-html="RowIcon.chevron"></span>
     </button>
 
     <LearnedWords v-if="showLearned" @close="showLearned = false" />
@@ -143,7 +143,7 @@ function invite() {
         <button
           v-for="language in LANGUAGES"
           :key="language.code"
-          class="choice"
+          class="v-choice"
           :class="{ sel: draftLang === language.code }"
           @click="draftLang = language.code"
         >
@@ -155,7 +155,7 @@ function invite() {
         <button
           v-for="day in WEEKDAYS"
           :key="day"
-          class="day-pill"
+          class="v-day-pill"
           :class="{ sel: draftDays.includes(day) }"
           @click="toggleDraftDay(day)"
         >
@@ -168,7 +168,7 @@ function invite() {
           <button
             v-for="time in TIMES"
             :key="time.value"
-            class="choice"
+            class="v-choice"
             style="flex: 1 1 40%"
             :class="{ sel: draftTime === time.value && !customTime }"
             @click="(draftTime = time.value), (customTime = '')"
@@ -254,7 +254,7 @@ function invite() {
   overflow: hidden;
 }
 
-.row {
+.v-row {
   width: 100%;
   display: flex;
   align-items: center;
@@ -271,11 +271,11 @@ function invite() {
   text-align: left;
 }
 
-.row:last-child {
+.v-row:last-child {
   border-bottom: none;
 }
 
-.row-ic {
+.v-row-ic {
   width: 34px;
   height: 34px;
   border-radius: var(--r-md);
@@ -286,27 +286,27 @@ function invite() {
   flex: none;
 }
 
-.row-t {
+.v-row-t {
   flex: 1;
 }
 
-.row-v {
+.v-row-v {
   font-size: 13px;
   font-weight: 700;
   color: var(--muted);
 }
 
-.row-v.gold {
+.v-row-v.gold {
   color: var(--gold);
 }
 
-.row-c {
+.v-row-c {
   color: var(--faint);
   display: grid;
   place-items: center;
 }
 
-.switch {
+.v-switch {
   width: 40px;
   height: 24px;
   border-radius: var(--r-pill);
@@ -318,7 +318,7 @@ function invite() {
   transition: background .15s;
 }
 
-.switch i {
+.v-switch i {
   position: absolute;
   top: 3px;
   left: 3px;
@@ -330,11 +330,11 @@ function invite() {
   transition: transform .15s;
 }
 
-.switch.on {
+.v-switch.on {
   background: var(--green);
 }
 
-.switch.on i {
+.v-switch.on i {
   transform: translateX(16px);
 }
 
@@ -384,7 +384,7 @@ function invite() {
   margin-top: 10px;
 }
 
-.choice {
+.v-choice {
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: var(--r-md);
@@ -396,7 +396,7 @@ function invite() {
   cursor: pointer;
 }
 
-.choice.sel {
+.v-choice.sel {
   border-color: var(--green);
   background: var(--green-soft);
   color: var(--green-dark);
@@ -408,7 +408,7 @@ function invite() {
   margin-top: 10px;
 }
 
-.day-pill {
+.v-day-pill {
   flex: 1;
   aspect-ratio: 1;
   border: 1px solid var(--line);
@@ -421,7 +421,7 @@ function invite() {
   cursor: pointer;
 }
 
-.day-pill.sel {
+.v-day-pill.sel {
   border-color: var(--green);
   background: var(--green);
   color: #fff;
