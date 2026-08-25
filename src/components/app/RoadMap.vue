@@ -206,10 +206,11 @@ watch(() => store.state.road.length, focusCurrent)
       </div>
     </div>
 
+    <!-- The sheet shows its own confirmation, so closing is the player's call. -->
     <AddPathSheet
       v-if="adding"
+      @joined="() => store.refreshRoad()"
       @close="adding = false"
-      @joined="() => { adding = false; store.refreshRoad() }"
     />
 
     <GroupLeaderboard
