@@ -62,6 +62,8 @@ export const api = {
   dashboard: () => request('GET', '/dashboard'),
   coins: () => request('GET', '/coins'),
   streak: () => request('GET', '/streak'),
+  notifications: () => request('GET', '/notifications'),
+  readNotifications: () => request('POST', '/notifications/read'),
   road: () => request('GET', '/road'),
 
   category: (id) => request('GET', `/categories/${id}`),

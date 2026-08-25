@@ -59,6 +59,46 @@
     --shell: 0 30px 60px -40px rgba(22, 32, 26, .28);
 }
 
+/*
+ * Night mode. Only the tokens change — every screen inherits it, because
+ * nothing below hard-codes a colour.
+ */
+.app.dark {
+    --ink: #E9F0EA;
+    --muted: #90A196;
+    --faint: #5E6F65;
+
+    --green: #2BC876;
+    --green-dark: #21A75F;
+    --green-bright: #3FE08C;
+    --green-deep: #177845;
+    --green-soft: #1B2E23;
+    --green-pale: #24503A;
+    --green-bar: #2E4237;
+
+    --gold: #E8B54A;
+    --gold-ink: #F6E3B4;
+    --gold-muted: #C6A15C;
+
+    --red: #F0656A;
+    --red-dark: #F78C90;
+    --red-soft: #2E1E20;
+    --red-line: #4A2E31;
+
+    --card: #18211B;
+    --canvas: #101712;
+    --wash: #151E17;
+    --wash-2: #223027;
+    --wash-3: #1B2E23;
+
+    --line: #2E4237;
+    --line-2: #263129;
+    --line-3: #223027;
+    --line-4: #2B3A31;
+
+    --shell: 0 30px 60px -40px rgba(0, 0, 0, .7);
+}
+
 * {
     margin: 0;
     padding: 0;

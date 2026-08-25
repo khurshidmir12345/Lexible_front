@@ -77,8 +77,10 @@ export const store = {
   },
 
   setDark(on) {
-    // The root component binds the `dark` class itself; this only holds state.
+    // The root component binds the `dark` class; Telegram's own header and
+    // background have to be told separately or the app floats on a pale strip.
     state.dark = Boolean(on)
+    telegram.paint(state.dark)
   },
 
   node(id) {

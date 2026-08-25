@@ -15,8 +15,14 @@ export const telegram = {
     tg.ready()
     tg.expand()
     tg.disableVerticalSwipes?.()      // stops the pull-to-close gesture eating swipes
-    tg.setHeaderColor?.('#eef2ee')
-    tg.setBackgroundColor?.('#eef2ee')
+    this.paint(false)
+  },
+
+  /** Keeps Telegram's own chrome in step with the app's theme. */
+  paint(dark) {
+    const shell = dark ? '#101712' : '#F0F3F0'
+    tg?.setHeaderColor?.(shell)
+    tg?.setBackgroundColor?.(shell)
   },
 
   initData: tg?.initData ?? '',

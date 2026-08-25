@@ -5,6 +5,7 @@ import RoadMap from './RoadMap.vue'
 import Profile from './Profile.vue'
 import CategoryView from '../category/CategoryView.vue'
 import DuelFlow from '../duel/DuelFlow.vue'
+import Notifications from './Notifications.vue'
 import { api } from '../../lib/api'
 import { NavIcon, bellIcon } from '../../lib/icons2'
 import { store } from '../../lib/store'
@@ -13,6 +14,8 @@ import { telegram } from '../../lib/telegram'
 const tab = ref('dash')
 const openCategoryId = ref(null)
 const duelCode = ref(null)
+const showingNotifications = ref(false)
+const unread = ref(0)
 
 const TABS = [
   { key: 'dash', label: 'Bosh', icon: NavIcon.home },
@@ -58,9 +61,18 @@ async function acceptInvite() {
   }
 }
 
+async function checkBell() {
+  try {
+    unread.value = (await api.notifications()).unread
+  } catch {
+    /* the bell is not worth an error message */
+  }
+}
+
 onMounted(() => {
   store.refreshDashboard().catch(() => {})
   acceptInvite()
+  checkBell()
 })
 
 // The home tab shows counters a finished round changes.
@@ -112,5 +124,11 @@ watch(tab, (next) => {
     />
 
     <DuelFlow v-if="duelCode" :code="duelCode" @close="duelCode = null" />
+
+    <Notifications
+      v-if="showingNotifications"
+      @close="showingNotifications = false"
+      @read="unread = 0"
+    />
   </div>
 </template>
