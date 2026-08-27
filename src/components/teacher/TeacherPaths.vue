@@ -1,23 +1,48 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+/**
+ * UT-01 «Yoʼllarim» — the teacher's own curriculum drawn as the same zig-zag
+ * map their students walk, plus UT-01b, the sheet that switches between paths.
+ *
+ * Tapping a stage opens UT-MD2 rather than jumping straight into the editor:
+ * from one card a teacher may want the vocabulary, the class results, or a
+ * live game.
+ */
+import { computed, onMounted, ref } from 'vue'
 import Modal from '../ui/Modal.vue'
+import StageMenu from './StageMenu.vue'
+import { canvasHeight, connectors, layout, trinkets, INSET, TOP } from '../../lib/roadmap'
+import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
+import { telegram } from '../../lib/telegram'
 
-const emit = defineEmits(['edit-stage'])
+const emit = defineEmits(['edit-stage', 'competition'])
 
 const paths = ref([])
-const active = ref(null)
+const activeId = ref(null)
 const loading = ref(true)
+const switching = ref(false)
 const creating = ref(false)
+const renaming = ref(false)
+const menuStage = ref(null)
 const draft = ref({ title: '', subtitle: '' })
+
+const current = computed(() => paths.value.find((p) => p.id === activeId.value) ?? null)
+
+/** The map is drawn from the top down, with the newest stage first. */
+const nodes = computed(() => layout(current.value?.stages ?? [], { top: TOP }))
+const links = computed(() => connectors(nodes.value))
+const decor = computed(() => trinkets(nodes.value))
+const height = computed(() => canvasHeight(nodes.value.length + 1))
 
 async function load() {
   loading.value = true
+
   try {
     paths.value = (await api.teacher.paths()).paths
-    if (!active.value || !paths.value.some((p) => p.id === active.value)) {
-      active.value = paths.value[0]?.id ?? null
+
+    if (!paths.value.some((p) => p.id === activeId.value)) {
+      activeId.value = paths.value[0]?.id ?? null
     }
   } catch (error) {
     store.toast(error.message)
@@ -26,23 +51,64 @@ async function load() {
   }
 }
 
+function pick(id) {
+  activeId.value = id
+  switching.value = false
+  telegram.haptic()
+}
+
 async function createPath() {
-  if (draft.value.title.trim().length < 2) return
+  const title = draft.value.title.trim()
+  if (title.length < 2) return
 
   try {
-    const { path } = await api.teacher.createPath(draft.value.title.trim(), draft.value.subtitle.trim() || null)
+    const { path } = await api.teacher.createPath(title, draft.value.subtitle.trim() || null)
     creating.value = false
+    switching.value = false
     draft.value = { title: '', subtitle: '' }
     await load()
-    active.value = path.id
+    activeId.value = path.id
+    store.toast('✅ Yoʼl yaratildi')
   } catch (error) {
     store.toast(error.message)
   }
 }
 
-async function addStage() {
+async function renamePath() {
+  const title = draft.value.title.trim()
+  if (title.length < 2 || !current.value) return
+
   try {
-    const { stage } = await api.teacher.addStage(active.value, null)
+    await api.teacher.renamePath(current.value.id, title, draft.value.subtitle.trim() || null)
+    renaming.value = false
+    await load()
+    store.toast('✅ Saqlandi')
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
+
+async function deletePath() {
+  if (!current.value) return
+  if (!confirm(`«${current.value.title}» yoʼli oʼchirilsinmi?`)) return
+
+  try {
+    await api.teacher.deletePath(current.value.id)
+    renaming.value = false
+    activeId.value = null
+    await load()
+    store.toast('Yoʼl oʼchirildi')
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
+
+/** A new stage lands at the end of the path and opens for filling. */
+async function addStage() {
+  if (!current.value) return
+
+  try {
+    const { stage } = await api.teacher.addStage(current.value.id, null)
     await load()
     emit('edit-stage', stage.id)
   } catch (error) {
@@ -50,74 +116,194 @@ async function addStage() {
   }
 }
 
-const current = () => paths.value.find((p) => p.id === active.value)
+function openStage(stage) {
+  telegram.haptic()
+  menuStage.value = { ...stage, path: current.value }
+}
+
+function startRename() {
+  draft.value = { title: current.value?.title ?? '', subtitle: current.value?.subtitle ?? '' }
+  renaming.value = true
+}
+
+function startCreate() {
+  draft.value = { title: '', subtitle: '' }
+  creating.value = true
+}
+
+/** "8 bosqich · 96 soʼz · 2 guruhga biriktirilgan" — the UT-01b sub-line. */
+function summary(path) {
+  const parts = [`${path.stages_count} bosqich`, `${path.words_count} soʼz`]
+  parts.push(path.groups_count ? `${path.groups_count} guruhga biriktirilgan` : 'biriktirilmagan')
+
+  return parts.join(' · ')
+}
 
 onMounted(load)
 defineExpose({ load })
 </script>
 
 <template>
-  <div class="scroll">
-    <div class="path-tabs">
+  <div class="paths">
+    <!-- Compact switcher: the active path, its neighbours, and a plus. -->
+    <div class="switcher">
       <button
-        v-for="path in paths"
+        v-for="path in paths.slice(0, 3)"
         :key="path.id"
-        class="path-tab"
-        :class="{ on: active === path.id }"
-        @click="active = path.id"
+        class="t-chip"
+        :class="{ on: activeId === path.id }"
+        @click="activeId === path.id ? (switching = true) : pick(path.id)"
       >
         {{ path.title }}
+        <span v-if="activeId === path.id" class="caret" v-html="TeacherIcon.chevron"></span>
       </button>
-      <button class="path-add" @click="creating = true">+</button>
+      <button v-if="paths.length > 3" class="t-chip" @click="switching = true">
+        +{{ paths.length - 3 }}
+      </button>
+      <button class="t-chip add" aria-label="Yangi yoʼl" @click="startCreate">
+        <span v-html="TeacherIcon.plus"></span>
+      </button>
     </div>
 
-    <div v-if="loading" class="note">Yuklanmoqda...</div>
+    <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
-    <template v-else-if="current()">
-      <p class="hint">Bosqichlar cheksiz. Kartani bosing — lugʼat tahriri.</p>
+    <!-- The map itself -->
+    <div v-else-if="current" class="canvas">
+      <div class="inner" :style="{ height: `${height}px` }">
+        <svg class="links" :viewBox="`0 0 390 ${height}`" preserveAspectRatio="none" fill="none">
+          <path
+            v-for="(d, i) in links"
+            :key="i"
+            :d="d"
+            stroke="#D9D6C8"
+            stroke-width="4.5"
+            stroke-linecap="round"
+            stroke-dasharray="8 12"
+          />
+        </svg>
 
-      <div class="stages">
+        <span
+          v-for="item in decor"
+          :key="item.key"
+          class="trinket"
+          :style="{ top: `${item.top}px`, left: `${item.left}px` }"
+        >{{ item.emoji }}</span>
+
+        <!-- The road always grows from the top, so "add" sits above stage 1. -->
         <button
-          v-for="stage in [...current().stages].reverse()"
-          :key="stage.id"
-          class="stage"
-          :class="{ exam: stage.type === 'exam' }"
-          @click="emit('edit-stage', stage.id)"
+          class="node create"
+          :style="{ top: '8px', right: `${INSET}px` }"
+          @click="addStage"
         >
-          <span class="num v-num">{{ stage.position }}</span>
-          <span class="stage-text">
-            <b>{{ stage.title ?? 'Nomsiz bosqich' }}</b>
+          <span class="create-plus" v-html="TeacherIcon.plus"></span>
+          <span class="create-label">BOSQICH<br />QOʼSHISH</span>
+        </button>
+
+        <button
+          v-for="stage in nodes"
+          :key="stage.id"
+          class="node"
+          :class="[stage.type === 'exam' ? 'exam' : stage.words_count ? 'filled' : 'empty']"
+          :style="{ top: `${stage.top}px`, [stage.side]: `${INSET}px` }"
+          @click="openStage(stage)"
+        >
+          <span class="node-head">
+            <b class="v-num">{{ stage.position }}</b>
+            <span class="node-pen" v-html="TeacherIcon.pencil"></span>
+          </span>
+          <span class="node-foot">
+            {{ stage.title || 'Nomsiz' }}<br />
             <i>{{ stage.words_count }} soʼz</i>
           </span>
         </button>
-
-        <button class="stage add" @click="addStage">
-          <span class="plus">+</span>
-          <span class="stage-text"><b>Bosqich qoʼshish</b><i>yangi dars</i></span>
-        </button>
       </div>
-    </template>
 
-    <div v-else class="empty">
-      <div class="empty-emoji">🗺</div>
-      <h3>Hali yoʼl yoʼq</h3>
-      <p>Yoʼl — bu darslar ketma-ketligi. Yarating va bosqich qoʼshing.</p>
-      <button class="btn btn-primary" @click="creating = true">Yoʼl yaratish</button>
+      <div class="hint">
+        <span v-html="TeacherIcon.info"></span>
+        <b>Bosqichlar cheksiz. Kartani bosing — lugʼat tahriri, natijalar yoki oʼyin.</b>
+      </div>
     </div>
 
+    <!-- No paths yet -->
+    <div v-else class="t-empty">
+      <span class="t-empty-ic" v-html="TeacherIcon.road"></span>
+      <h3>Hali yoʼl yoʼq</h3>
+      <p>Yoʼl — darslar ketma-ketligi. Yarating, keyin bosqich qoʼshib lugʼat kiriting.</p>
+      <button class="btn btn-primary" @click="startCreate">Yoʼl yaratish</button>
+    </div>
+
+    <StageMenu
+      v-if="menuStage"
+      :stage="menuStage"
+      @close="menuStage = null"
+      @edit="(id) => { menuStage = null; emit('edit-stage', id) }"
+      @play="(competition) => { menuStage = null; emit('competition', competition) }"
+      @deleted="() => { menuStage = null; load() }"
+    />
+
     <Teleport to="#lx-overlays">
-      <Modal :open="creating" title="Yangi yoʼl" text="Masalan: 5-sinf, IELTS.">
-        <label class="field">
-          <span>YOʼL NOMI</span>
+      <!-- UT-01b -->
+      <Modal :open="switching" title="Yoʼlni tanlang">
+        <div class="picker">
+          <button
+            v-for="path in paths"
+            :key="path.id"
+            class="option"
+            :class="{ on: activeId === path.id }"
+            @click="pick(path.id)"
+          >
+            <span class="option-text">
+              <b>{{ path.title }}{{ path.subtitle ? ` · ${path.subtitle}` : '' }}</b>
+              <i>{{ summary(path) }}</i>
+            </span>
+            <span class="radio" :class="{ on: activeId === path.id }"></span>
+          </button>
+
+          <button class="option dashed" @click="() => { switching = false; startCreate() }">
+            <span v-html="TeacherIcon.plus"></span>
+            <b>Yangi yoʼl yaratish</b>
+          </button>
+
+          <button v-if="current" class="option dashed" @click="() => { switching = false; startRename() }">
+            <span v-html="TeacherIcon.pencil"></span>
+            <b>«{{ current.title }}» ni tahrirlash</b>
+          </button>
+        </div>
+        <template #actions>
+          <button class="btn btn-soft" @click="switching = false">Yopish</button>
+        </template>
+      </Modal>
+
+      <Modal :open="creating" title="Yangi yoʼl" text="Masalan: 5-sinf, IELTS boshlangʼich.">
+        <label class="t-field field"><span>YOʼL NOMI</span>
           <input v-model="draft.title" placeholder="5-sinf" />
         </label>
-        <label class="field">
-          <span>IZOH</span>
+        <label class="t-field field"><span>IZOH</span>
           <input v-model="draft.subtitle" placeholder="Ingliz tili" />
         </label>
         <template #actions>
           <button class="btn btn-soft" @click="creating = false">Bekor</button>
-          <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="createPath">Yaratish</button>
+          <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="createPath">
+            Yaratish
+          </button>
+        </template>
+      </Modal>
+
+      <Modal :open="renaming" title="Yoʼlni tahrirlash">
+        <label class="t-field field"><span>YOʼL NOMI</span>
+          <input v-model="draft.title" />
+        </label>
+        <label class="t-field field"><span>IZOH</span>
+          <input v-model="draft.subtitle" />
+        </label>
+        <button class="danger-row" @click="deletePath">
+          <span v-html="TeacherIcon.trash"></span> Yoʼlni oʼchirish
+        </button>
+        <template #actions>
+          <button class="btn btn-soft" @click="renaming = false">Bekor</button>
+          <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="renamePath">
+            Saqlash
+          </button>
         </template>
       </Modal>
     </Teleport>
@@ -125,79 +311,229 @@ defineExpose({ load })
 </template>
 
 <style scoped>
-.path-tabs { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
-
-.path-tab {
-  border: 1px solid var(--line); background: var(--card);
-  border-radius: var(--r-pill); padding: 7px 14px;
-  font-family: 'Manrope', sans-serif; font-size: 12.5px; font-weight: 700;
-  color: var(--muted); cursor: pointer; white-space: nowrap;
+.paths {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
-.path-tab.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-
-.path-add {
-  width: 32px; height: 32px; border-radius: var(--r-pill);
-  border: 1.5px dashed #C3CEC5; background: none;
-  color: var(--muted); font-size: 17px; font-weight: 700;
-  cursor: pointer; flex-shrink: 0;
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 22px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--wash);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
 }
 
-.hint { font-size: 12px; font-weight: 600; color: var(--faint); text-align: center; margin: 4px 0; }
+.switcher::-webkit-scrollbar { display: none; }
 
-.stages { display: flex; flex-direction: column; gap: 9px; }
-
-.stage {
-  display: flex; align-items: center; gap: 13px;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: 14px; padding: 13px 15px;
-  cursor: pointer; text-align: left; font-family: 'Manrope', sans-serif;
+.switcher .t-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.stage.exam { border-color: var(--gold-mid); background: #FFFBF0; }
+.caret { display: grid; place-items: center; transform: rotate(90deg) scale(.8); }
 
-.num {
-  width: 38px; height: 38px; border-radius: 12px;
-  background: var(--green-soft); color: var(--green-dark);
-  display: grid; place-items: center; font-size: 15px;
-  flex-shrink: 0;
+/* ------------------------------------------------------------------- map */
+
+.canvas {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #F3F1EA;
+  position: relative;
 }
 
-.stage-text { flex: 1; }
-.stage-text b { display: block; font-size: 14.5px; font-weight: 700; }
-.stage-text i { display: block; font-style: normal; font-size: 12px; font-weight: 600; color: var(--faint); }
+.app.dark .canvas { background: #141A15; }
 
-.stage.add { border-style: dashed; background: none; }
+.inner { position: relative; width: 100%; }
 
-.plus {
-  width: 38px; height: 38px; border-radius: 12px;
-  border: 1.5px dashed #C3CEC5; display: grid; place-items: center;
-  font-size: 18px; font-weight: 700; color: var(--muted); flex-shrink: 0;
+.links { position: absolute; inset: 0; width: 100%; display: block; }
+
+.trinket {
+  position: absolute;
+  font-size: 26px;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .16));
+  pointer-events: none;
 }
 
-.empty {
-  display: flex; flex-direction: column; align-items: center;
-  text-align: center; gap: 6px; padding: 50px 20px;
+.node {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  border: none;
+  border-radius: 22px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+  color: #fff;
+  text-align: left;
+  transition: transform .07s;
 }
 
-.empty-emoji { font-size: 42px; }
-.empty h3 { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 700; }
-.empty p { font-size: 13px; font-weight: 600; color: var(--muted); max-width: 250px; margin-bottom: 10px; }
+.node:active { transform: translateY(3px); }
 
-.note { text-align: center; font-size: 13px; font-weight: 600; color: var(--faint); padding: 30px; }
-
-.field { display: block; margin-top: 12px; }
-
-.field span {
-  display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
-  color: var(--faint); margin-bottom: 6px;
+.node.filled {
+  background: linear-gradient(165deg, #20B56A, #0F9A50);
+  box-shadow: 0 5px 0 #0C7A3F;
 }
 
-.field input {
-  width: 100%; border: 1px solid var(--line); border-radius: 12px;
-  padding: 12px 14px; font-family: 'Manrope', sans-serif;
-  font-size: 14px; font-weight: 700; color: var(--ink); outline: none;
+.node.empty {
+  background: linear-gradient(165deg, #3D8BFA, #2266DB);
+  box-shadow: 0 5px 0 #1B54B8;
 }
 
-.field input:focus { border-color: var(--green); }
+.node.exam {
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  box-shadow: 0 5px 0 var(--gold-deep);
+  color: var(--gold-ink);
+}
+
+.node-head { display: flex; justify-content: space-between; align-items: baseline; }
+.node-head b { font-size: 20px; line-height: 1; }
+
+.node-pen {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .28);
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.node-pen :deep(svg) { width: 11px; height: 11px; }
+
+.node-foot {
+  margin-top: auto;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+.node-foot i { font-style: normal; font-weight: 700; opacity: .85; }
+
+.node.create {
+  background: rgba(255, 255, 255, .6);
+  border: 2px dashed #B9C7BC;
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--faint);
+}
+
+.app.dark .node.create { background: rgba(255, 255, 255, .04); }
+
+.create-plus {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  border: 2px dashed #B9C7BC;
+  display: grid;
+  place-items: center;
+}
+
+.create-label { font-size: 7.5px; font-weight: 800; text-align: center; line-height: 1.35; }
+
+.hint {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 11px 14px;
+}
+
+.hint > span { color: var(--green); display: grid; place-items: center; flex: none; }
+.hint b { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.4; }
+
+/* --------------------------------------------------------------- sheets */
+
+.picker { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 14px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+}
+
+.option.on { border: 1.5px solid var(--green); background: var(--wash-3); }
+
+.option-text { flex: 1; min-width: 0; }
+.option-text b { display: block; font-size: 14px; font-weight: 800; }
+.option.on .option-text b { color: var(--green-dark); }
+.option-text i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--faint);
+  margin-top: 2px;
+}
+
+.option.dashed {
+  border-style: dashed;
+  border-color: var(--line-4);
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.option.dashed > span { display: grid; place-items: center; }
+
+.radio {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line-4);
+  flex: none;
+}
+
+.radio.on { border: 6px solid var(--green); }
+
+.field { margin-top: 12px; }
+
+.danger-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--red-line);
+  border-radius: var(--r-md);
+  background: none;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--red);
+  cursor: pointer;
+}
+
+.danger-row > span { display: grid; place-items: center; }
 </style>

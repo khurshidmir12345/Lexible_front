@@ -46,24 +46,55 @@ export const api = {
 
   teacher: {
     dashboard: () => request('GET', '/teacher/dashboard'),
+    profile: () => request('GET', '/teacher/profile'),
+
+    // Paths and their stages
     paths: () => request('GET', '/teacher/paths'),
     createPath: (title, subtitle) => request('POST', '/teacher/paths', { title, subtitle }),
+    renamePath: (id, title, subtitle) => request('PATCH', `/teacher/paths/${id}`, { title, subtitle }),
+    deletePath: (id) => request('DELETE', `/teacher/paths/${id}`),
     addStage: (pathId, title) => request('POST', `/teacher/paths/${pathId}/stages`, { title }),
     stage: (id) => request('GET', `/teacher/stages/${id}`),
-    saveStage: (id, title, words) => request('PATCH', `/teacher/stages/${id}`, { title, words }),
+    saveStage: (id, title, words, type) =>
+      request('PATCH', `/teacher/stages/${id}`, { title, words, ...(type ? { type } : {}) }),
+    deleteStage: (id) => request('DELETE', `/teacher/stages/${id}`),
+
+    // Groups
     groups: () => request('GET', '/teacher/groups'),
     createGroup: (data) => request('POST', '/teacher/groups', data),
     group: (id, stage) => request('GET', `/teacher/groups/${id}${stage ? `?stage=${stage}` : ''}`),
+    updateGroup: (id, data) => request('PATCH', `/teacher/groups/${id}`, data),
+    deleteGroup: (id) => request('DELETE', `/teacher/groups/${id}`),
     attachPath: (id, pathId) => request('PATCH', `/teacher/groups/${id}/path`, { path_id: pathId }),
+    groupRoad: (id) => request('GET', `/teacher/groups/${id}/road`),
+    stageResults: (groupId, stageId) =>
+      request('GET', `/teacher/groups/${groupId}/stages/${stageId}/results`),
+
+    // Members
+    candidates: (groupId, query) =>
+      request('GET', `/teacher/groups/${groupId}/candidates?q=${encodeURIComponent(query)}`),
+    addMember: (groupId, userId) =>
+      request('POST', `/teacher/groups/${groupId}/members`, { user_id: userId }),
     approve: (memberId) => request('POST', `/teacher/members/${memberId}/approve`),
     removeMember: (memberId) => request('DELETE', `/teacher/members/${memberId}`),
 
+    // Contests — with a class, or open to whoever has the link
     openCompetition: (groupId, stageId) =>
       request('POST', `/teacher/groups/${groupId}/competitions`, { path_stage_id: stageId }),
+    openStageCompetition: (stageId, groupId = null) =>
+      request('POST', `/teacher/stages/${stageId}/competitions`, { group_id: groupId }),
+    competitions: (groupId) =>
+      request('GET', groupId ? `/teacher/groups/${groupId}/competitions` : '/teacher/competitions'),
     competition: (id) => request('GET', `/teacher/competitions/${id}`),
     startCompetition: (id) => request('POST', `/teacher/competitions/${id}/start`),
     closeCompetition: (id) => request('POST', `/teacher/competitions/${id}/close`),
     competitionResults: (id) => request('GET', `/teacher/competitions/${id}/results`),
+
+    // Billing — UT-08 / UT-08b
+    plan: () => request('GET', '/teacher/plan'),
+    choosePlan: (seats) => request('POST', '/teacher/plan', { seats }),
+    setBillingMode: (mode) => request('POST', '/teacher/plan/mode', { mode }),
+    remindUnpaid: () => request('POST', '/teacher/plan/remind'),
   },
 
   accountImpact: () => request('GET', '/me/impact'),

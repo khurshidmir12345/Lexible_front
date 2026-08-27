@@ -48,7 +48,7 @@ function start() {
     </template>
 
     <template #actions>
-      <button class="btn ghost" @click="emit('close')">Bekor</button>
+      <button class="btn btn-ghost" @click="emit('close')">Bekor</button>
       <button class="btn" :disabled="loading || !brief?.ready" @click="start">
         Boshlash
       </button>
@@ -90,7 +90,7 @@ function start() {
   margin-top: 10px;
   padding: 12px 14px;
   border-radius: var(--r-md);
-  background: var(--tint);
+  background: var(--wash-2);
 }
 
 .btn:disabled {

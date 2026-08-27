@@ -29,6 +29,15 @@
     --gold-deep: #C9A230;
     --gold-ink: #5B4300;
     --gold-muted: #7A5E1A;
+    --gold-soft: #FBF3DE;
+    --gold-line: #F0DFB4;
+    --gold-text: #8A6D1F;
+
+    /* Blue and violet — codes, links, and the badge tints on the class lists */
+    --blue: #2E7CF6;
+    --blue-soft: #EDF4FE;
+    --violet: #7C5CE0;
+    --violet-soft: #F3EDFE;
 
     /* Red — losses and destructive actions */
     --red: #E5484D;
@@ -81,6 +90,14 @@
        must stay dark — only the gold used *as* text is lightened. */
     --gold-ink: #5B4300;
     --gold-muted: #7A5E1A;
+    --gold-soft: #2A2214;
+    --gold-line: #4A3C1C;
+    --gold-text: #E8B54A;
+
+    --blue: #6BA6FF;
+    --blue-soft: #17242E;
+    --violet: #A88BF5;
+    --violet-soft: #221E33;
 
     --red: #F0656A;
     --red-dark: #F78C90;

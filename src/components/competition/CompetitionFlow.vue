@@ -159,7 +159,7 @@ onBeforeUnmount(stopPolling)
   justify-content: center;
   gap: 14px;
   padding: 30px 26px calc(30px + env(safe-area-inset-bottom));
-  background: var(--bg);
+  background: var(--canvas);
   text-align: center;
   z-index: 30;
 }
@@ -181,7 +181,7 @@ onBeforeUnmount(stopPolling)
 }
 
 .cf-note b {
-  color: var(--brand);
+  color: var(--green);
   font-weight: 700;
 }
 
@@ -195,7 +195,7 @@ onBeforeUnmount(stopPolling)
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--brand);
+  background: var(--green);
   animation: cf-bounce 1.1s infinite ease-in-out;
 }
 
@@ -213,7 +213,7 @@ onBeforeUnmount(stopPolling)
 }
 
 .cf-board {
-  background: var(--bg);
+  background: var(--canvas);
   z-index: 30;
 }
 </style>

@@ -1,9 +1,16 @@
 <script setup>
+/**
+ * UT-07 «Musobaqa yakuni» — podium first, then the rest of the field.
+ *
+ * Shown to both sides: the teacher gets "Yana oʼtkazish", a student gets a
+ * highlighted row and a plain close.
+ */
 import { computed } from 'vue'
+import { TeacherIcon } from '../../lib/icons2'
 import { telegram } from '../../lib/telegram'
 
 const props = defineProps({
-  board: Object,
+  board: { type: Object, required: true },
   /** A student sees their own row highlighted and no "run it again". */
   meId: { type: Number, default: null },
 })
@@ -13,6 +20,7 @@ const emit = defineEmits(['close', 'again'])
 /** Second, first, third — the podium reads outward from the winner. */
 const podium = computed(() => {
   const [first, second, third] = props.board?.podium ?? []
+
   return [
     { place: 2, player: second },
     { place: 1, player: first },
@@ -20,64 +28,73 @@ const podium = computed(() => {
   ].filter((slot) => slot.player)
 })
 
-const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' }
+/** Everyone who did not make the podium. */
+const rest = computed(() => (props.board?.standings ?? []).slice(3))
 
 /** Classmates may still be answering — the podium is provisional until then. */
 const live = computed(() => props.board?.status !== 'finished')
 
 function share() {
-  const board = props.board
-  const winner = board?.podium?.[0]
+  const winner = props.board?.podium?.[0]
   if (!winner) return
 
-  telegram.share('', `«${board.group}» ${board.stage}-bosqich musobaqasi — gʼolib ${winner.name} (${winner.score}/${winner.total})`)
+  telegram.share(
+    '',
+    `«${props.board.group}» ${props.board.stage}-bosqich musobaqasi — ` +
+    `gʼolib ${winner.name} (${winner.score}/${winner.total})`,
+  )
 }
 </script>
 
 <template>
   <div class="cb">
     <header class="cb-head">
+      <span class="cup" v-html="TeacherIcon.trophy"></span>
       <h1>{{ live ? 'Natijalar toʼplanmoqda' : 'Musobaqa yakunlandi' }}</h1>
-      <p>{{ board.stage }}-bosqich · {{ board.questions }} savol · {{ board.participants }} ishtirokchi</p>
+      <p>
+        <template v-if="board.stage">{{ board.stage }}-bosqich · </template>
+        {{ board.questions }} savol · {{ board.participants }} ishtirokchi
+      </p>
     </header>
 
-    <div class="cb-scroll">
-      <section v-if="podium.length" class="cb-podium">
-        <div v-for="slot in podium" :key="slot.place" class="cb-slot" :class="`p${slot.place}`">
-          <span class="cb-medal">{{ MEDALS[slot.place] }}</span>
-          <span class="cb-avatar">
+    <div class="cb-body">
+      <section v-if="podium.length" class="podium">
+        <div v-for="slot in podium" :key="slot.place" class="slot" :class="`p${slot.place}`">
+          <span v-if="slot.place === 1" class="wreath" v-html="TeacherIcon.wreath"></span>
+          <span class="face">
             <img v-if="slot.player.avatar" :src="slot.player.avatar" alt="" />
             <template v-else>{{ slot.player.name.charAt(0) }}</template>
           </span>
-          <b class="cb-name">{{ slot.player.name }}</b>
-          <span class="cb-score">{{ slot.player.score }} toʼgʼri · {{ slot.player.accuracy }}%</span>
-          <div class="cb-block"><b class="v-num">{{ slot.place }}</b></div>
+          <b class="who">{{ slot.player.name.split(' ')[0] }}</b>
+          <i class="score">{{ slot.player.score }} toʼgʼri · {{ slot.player.accuracy }}%</i>
+          <span class="block v-num">{{ slot.place }}</span>
         </div>
       </section>
 
-      <section class="cb-rows">
-        <div
-          v-for="row in board.standings"
-          :key="row.id"
-          class="cb-row"
-          :class="{ me: meId === row.id, dnf: !row.finished }"
-        >
-          <b class="cb-rank v-num">{{ row.rank }}</b>
-          <span class="cb-avatar sm">
-            <img v-if="row.avatar" :src="row.avatar" alt="" />
-            <template v-else>{{ row.name.charAt(0) }}</template>
-          </span>
-          <div class="cb-who">
-            <b>{{ row.name }}</b>
-            <span v-if="row.finished">{{ row.score }} toʼgʼri · {{ row.duration }} · {{ row.accuracy }}%</span>
-            <span v-else>Tugatmadi</span>
-          </div>
-        </div>
-      </section>
+      <div
+        v-for="row in rest"
+        :key="row.id"
+        class="row"
+        :class="{ me: meId === row.id, dnf: !row.finished }"
+      >
+        <b class="rank v-num">{{ row.rank }}</b>
+        <span class="t-avatar">
+          <img v-if="row.avatar" :src="row.avatar" alt="" />
+          <template v-else>{{ row.name.charAt(0) }}</template>
+        </span>
+        <span class="t-row-text">
+          <b>{{ row.name }}</b>
+          <i v-if="row.finished">{{ row.score }} toʼgʼri · {{ row.duration }}</i>
+          <i v-else>Tugatmadi</i>
+        </span>
+        <b class="pct v-num">{{ row.finished ? `${row.accuracy}%` : '—' }}</b>
+      </div>
+
+      <p v-if="!podium.length" class="t-loading">Hali natija yoʼq.</p>
     </div>
 
-    <div class="cb-foot">
-      <button class="btn ghost" @click="share">Ulashish</button>
+    <div class="t-foot">
+      <button class="btn btn-outline" @click="share">Ulashish</button>
       <button class="btn btn-primary" @click="emit('again')">
         {{ meId ? 'Yopish' : 'Yana oʼtkazish' }}
       </button>
@@ -90,178 +107,127 @@ function share() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg);
+  background: var(--canvas);
 }
 
-.cb-head {
-  padding: 22px 18px 16px;
-  text-align: center;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+.cb-head { padding: 30px 22px 0; text-align: center; flex: none; }
+
+.cup {
+  width: 76px;
+  height: 76px;
+  border-radius: var(--r-pill);
+  background: var(--gold-soft);
+  color: var(--gold);
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
 }
 
-.cb-head h1 {
-  font-family: 'Sora', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-}
+.cb-head h1 { font-family: 'Sora', sans-serif; font-size: 23px; font-weight: 700; margin-top: 12px; }
+.cb-head p { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 5px; }
 
-.cb-head p {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.cb-scroll {
+.cb-body {
   flex: 1;
   overflow-y: auto;
-  padding: 22px 18px;
-}
-
-.cb-podium {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 26px;
-}
-
-.cb-slot {
-  flex: 1;
-  max-width: 116px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  gap: 9px;
 }
 
-.cb-medal {
-  font-size: 20px;
+.cb-body > * { flex: none; }
+
+/* ----------------------------------------------------------------- podium */
+
+.podium { display: flex; align-items: flex-end; gap: 10px; padding: 2px 4px 6px; }
+
+.slot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.slot.p1 { flex: 1.08; }
+
+.wreath { color: var(--gold-mid); display: grid; place-items: center; }
+
+.face {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--blue-soft);
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
 }
 
-.cb-avatar {
+.face img { width: 100%; height: 100%; object-fit: cover; }
+
+.slot.p1 .face {
   width: 52px;
   height: 52px;
-  border-radius: 50%;
-  background: var(--tint);
-  display: grid;
-  place-items: center;
   font-size: 19px;
-  font-weight: 800;
-  color: var(--brand);
-  overflow: hidden;
-  margin: 6px 0 8px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  border: 2.5px solid var(--gold-mid);
 }
 
-.cb-avatar.sm {
-  width: 34px;
-  height: 34px;
-  font-size: 13px;
-  margin: 0;
-  flex-shrink: 0;
-}
+.slot.p3 .face { background: var(--violet-soft); color: var(--violet); }
 
-.cb-avatar img {
+.who { font-size: 12.5px; font-weight: 800; }
+.score { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--muted); text-align: center; }
+
+.block {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cb-slot.p1 .cb-avatar {
-  width: 64px;
-  height: 64px;
-  font-size: 23px;
-  box-shadow: 0 0 0 3px var(--gold);
-}
-
-.cb-name {
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.cb-score {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 3px;
-  line-height: 1.3;
-}
-
-.cb-block {
-  width: 100%;
-  margin-top: 10px;
-  border-radius: var(--r-md) var(--r-md) 0 0;
-  background: var(--tint);
+  border-radius: 14px 14px 0 0;
   display: grid;
   place-items: center;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 700;
+  background: #E9EDEA;
   color: var(--muted);
 }
 
-.cb-slot.p1 .cb-block {
-  height: 76px;
-  background: var(--gold);
+.app.dark .block { background: var(--wash-2); }
+
+.slot.p1 .block {
+  height: 92px;
+  font-size: 26px;
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
   color: var(--gold-ink);
+  box-shadow: 0 4px 0 var(--gold-deep);
 }
 
-.cb-slot.p2 .cb-block { height: 56px; }
-.cb-slot.p3 .cb-block { height: 42px; }
+.slot.p2 .block { height: 60px; }
+.slot.p3 .block { height: 44px; background: var(--gold-line); color: var(--gold-text); }
 
-.cb-row {
+/* ------------------------------------------------------------------- rows */
+
+.row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  border-radius: var(--r-md);
+  gap: 13px;
   background: var(--card);
   border: 1px solid var(--line);
-  margin-bottom: 8px;
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
 }
 
-.cb-row.me {
-  border-color: var(--brand);
-  background: var(--tint);
-}
+.row.me { border-color: var(--green); background: var(--wash-3); }
+.row.dnf { opacity: .65; }
 
-.cb-row.dnf {
-  opacity: .6;
-}
+.rank { width: 26px; font-size: 18px; font-weight: 700; color: var(--faint); flex: none; }
 
-.cb-rank {
-  width: 22px;
-  font-size: 14px;
-  font-weight: 800;
+.t-avatar { width: 38px; height: 38px; font-size: 14px; background: var(--wash-2); color: var(--muted); }
+
+.t-row-text b { font-size: 14.5px; }
+
+.pct { font-size: 16px; font-weight: 700; color: var(--muted); flex: none; }
+
+/* ------------------------------------------------------------------- foot */
+
+.btn-outline {
+  border: 1px solid var(--line);
+  background: none;
   color: var(--muted);
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.cb-who b {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 700;
-}
-
-.cb-who span {
-  display: block;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.cb-foot {
-  display: flex;
-  gap: 10px;
-  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--card);
-}
-
-.cb-foot .btn {
-  flex: 1;
 }
 </style>

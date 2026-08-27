@@ -37,6 +37,13 @@ export const store = {
     }
   },
 
+  /** Re-reads the account; the shell in App.vue is derived from it. */
+  async refreshUser() {
+    const { user } = await api.me()
+    state.user = user
+    this.setDark(user.dark_mode)
+  },
+
   async refreshRoad() {
     const { nodes, paths } = await api.road()
     state.road = nodes
@@ -65,6 +72,12 @@ export const store = {
   async setRole(role) {
     const { user } = await api.chooseRole(role)
     state.user = user
+
+    // The student side reads the map straight out of the store, so a teacher
+    // stepping across would otherwise land on an empty road.
+    if (role === 'student' && user.onboarded) {
+      await this.refreshRoad().catch(() => {})
+    }
   },
 
   async updateSettings(patch) {

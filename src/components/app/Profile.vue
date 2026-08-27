@@ -4,7 +4,7 @@ import LearnedWords from './LearnedWords.vue'
 import ReferralSheet from '../sheets/ReferralSheet.vue'
 import PremiumSheet from '../sheets/PremiumSheet.vue'
 import Modal from '../ui/Modal.vue'
-import { RowIcon } from '../../lib/icons2'
+import { RowIcon, TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { LANGUAGES, TIMES, WEEKDAYS, languageName } from '../../lib/languages'
 import { store } from '../../lib/store'
@@ -56,6 +56,22 @@ async function save() {
 }
 
 const toggleDark = () => store.updateSettings({ dark_mode: !user.value.dark_mode })
+
+/** The way back to the teacher side — App.vue swaps shells off `user.role`. */
+const switchingRole = ref(false)
+
+async function becomeTeacher() {
+  switchingRole.value = true
+
+  try {
+    await store.setRole('teacher')
+    telegram.notify('success')
+  } catch (error) {
+    store.toast(error.message)
+  } finally {
+    switchingRole.value = false
+  }
+}
 
 /** null → 'warn' (what is lost) → 'confirm' (the point of no return) */
 const closing = ref(null)
@@ -151,6 +167,18 @@ const daysLabel = computed(() => {
         <span class="v-row-ic" v-html="RowIcon.gift"></span>
         <span class="v-row-t">Doʼstlarni taklif qilish</span>
         <span class="v-row-v gold">+50 tanga</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <!--
+        The role choice must not be a one-way door: someone who has taught
+        before keeps their paths and groups, and anyone else can start.
+      -->
+      <button class="v-row" :disabled="switchingRole" @click="becomeTeacher">
+        <span class="v-row-ic" v-html="TeacherIcon.board"></span>
+        <span class="v-row-t">
+          {{ user.has_teaching ? 'Ustoz rejimiga qaytish' : 'Ustoz boʼlish' }}
+        </span>
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
     </div>

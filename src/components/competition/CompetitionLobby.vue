@@ -1,29 +1,41 @@
 <script setup>
+/**
+ * UT-06 «Musobaqa lobbi» — the teacher's side. The link is the whole screen:
+ * hand it out, watch names arrive, then release the class.
+ *
+ * A group game lists everybody in the class so the missing names show too; an
+ * open game can only list whoever has actually turned up.
+ */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import CompetitionBoard from './CompetitionBoard.vue'
-import { backIcon } from '../../lib/icons2'
+import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const props = defineProps({
-  competitionId: Number,
-  /** Needed to open a fresh round over the same stage from the result board. */
-  groupId: Number,
-  stageId: Number,
+  competitionId: { type: Number, required: true },
+  /** Both needed to run the same stage again from the result board. */
+  groupId: { type: Number, default: null },
+  stageId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['close'])
 
 const currentId = ref(props.competitionId)
+const currentStageId = ref(props.stageId)
 
 const lobby = ref(null)
 const board = ref(null)
 const starting = ref(false)
+const closing = ref(false)
+
 let timer = null
+const POLL = window.LEXIBLE?.competition?.poll_interval_ms ?? 2000
 
 const joined = computed(() => (lobby.value?.students ?? []).filter((s) => s.joined))
 const canStart = computed(() => joined.value.length > 0 && lobby.value?.status === 'lobby')
+const running = computed(() => lobby.value?.status === 'playing')
 
 const LABELS = {
   ready: 'Tayyor',
@@ -35,16 +47,23 @@ const LABELS = {
 async function poll() {
   try {
     const { competition, finished } = await api.teacher.competition(currentId.value)
+
     if (finished) {
       board.value = competition
       stopPolling()
     } else {
       lobby.value = competition
+      if (competition.stage_id) currentStageId.value = competition.stage_id
     }
   } catch (error) {
     store.toast(error.message)
     stopPolling()
   }
+}
+
+function startPolling() {
+  stopPolling()
+  timer = setInterval(poll, POLL)
 }
 
 function stopPolling() {
@@ -54,6 +73,7 @@ function stopPolling() {
 
 async function start() {
   starting.value = true
+
   try {
     const { competition } = await api.teacher.startCompetition(currentId.value)
     lobby.value = competition
@@ -65,30 +85,38 @@ async function start() {
   }
 }
 
-async function close() {
+async function finish() {
+  closing.value = true
+
   try {
     const { competition } = await api.teacher.closeCompetition(currentId.value)
     board.value = competition
     stopPolling()
   } catch (error) {
     store.toast(error.message)
+  } finally {
+    closing.value = false
   }
 }
 
 /** Runs the same stage again with a clean lobby. */
 async function again() {
-  if (!props.groupId || !props.stageId) {
+  const stageId = currentStageId.value
+
+  if (!stageId) {
     emit('close')
     return
   }
 
   try {
-    const { competition } = await api.teacher.openCompetition(props.groupId, props.stageId)
+    const { competition } = props.groupId
+      ? await api.teacher.openCompetition(props.groupId, stageId)
+      : await api.teacher.openStageCompetition(stageId, null)
+
     currentId.value = competition.id
     lobby.value = competition
     board.value = null
-    stopPolling()
-    timer = setInterval(poll, 2000)
+    startPolling()
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -96,289 +124,201 @@ async function again() {
 }
 
 function copyLink() {
-  const link = lobby.value?.invite_link
-  if (!link) return
+  if (!lobby.value?.invite_link) return
 
-  telegram.copy(link)
+  telegram.copy(lobby.value.invite_link)
   telegram.haptic()
   store.toast('🔗 Havola nusxalandi')
 }
 
 function share() {
-  const link = lobby.value?.invite_link
-  if (!link) return
+  if (!lobby.value?.invite_link) return
 
-  telegram.share(link, `«${lobby.value.group}» — ${lobby.value.stage}-bosqich musobaqasi. Qoʼshiling!`)
+  telegram.share(
+    lobby.value.invite_link,
+    `«${lobby.value.group}» — ${lobby.value.stage}-bosqich musobaqasi. Qoʼshiling!`,
+  )
 }
 
 onMounted(() => {
   poll()
-  timer = setInterval(poll, 2000)
+  startPolling()
 })
 
 onBeforeUnmount(stopPolling)
 </script>
 
 <template>
-  <div class="overlay show c-lobby">
-    <CompetitionBoard
-      v-if="board"
-      :board="board"
-      @close="emit('close')"
-      @again="again"
-    />
+  <div class="overlay show lobby">
+    <CompetitionBoard v-if="board" :board="board" @close="emit('close')" @again="again" />
 
     <template v-else>
-      <header class="c-head">
-        <button class="c-back" @click="emit('close')" v-html="backIcon"></button>
-        <div>
+      <header class="t-head">
+        <button class="t-back" aria-label="Yopish" @click="emit('close')">
+          <span v-html="TeacherIcon.cross"></span>
+        </button>
+        <div class="t-head-main">
           <h1>Musobaqa</h1>
-          <p v-if="lobby">{{ lobby.stage }}-bosqich · {{ lobby.group }} · {{ lobby.words }} soʼz</p>
+          <p v-if="lobby">
+            <template v-if="lobby.stage">{{ lobby.stage }}-bosqich · </template>
+            {{ lobby.stage_title || lobby.group }} · {{ lobby.words }} soʼz
+          </p>
         </div>
-        <span class="c-vs">VS</span>
+        <span class="vs-tag t-vs">VS</span>
       </header>
 
-      <div class="c-scroll">
+      <div class="t-body">
         <template v-if="lobby">
-          <section class="c-link-card">
-            <span class="c-label">MUSOBAQA HAVOLASI</span>
-            <button class="c-link" @click="copyLink">{{ lobby.invite_link }}</button>
-            <p class="c-hint">
-              Havola faqat botga start bosgan oʼquvchilarda ochiladi.
-              Start bosmaganlar avval botni ishga tushiradi.
-            </p>
-            <button class="c-share" @click="share">Telegramda ulashish</button>
-          </section>
+          <!-- The invite -->
+          <div class="t-card">
+            <span class="t-label">MUSOBAQA HAVOLASI</span>
+            <button class="link" @click="copyLink">
+              <span>{{ lobby.invite_link }}</span>
+              <span class="copy-ic" v-html="TeacherIcon.copy"></span>
+            </button>
 
-          <section class="c-list">
-            <div class="c-list-head">
-              <span class="c-label">QOʼSHILGANLAR · {{ joined.length }}</span>
-              <span class="c-live">jonli yangilanadi</span>
+            <div class="warn">
+              <span v-html="TeacherIcon.info"></span>
+              <b>
+                Havola faqat botga <b>start</b> bosgan oʼquvchilarda ochiladi.
+                Start bosmaganlar avval botni ishga tushiradi.
+              </b>
             </div>
 
-            <div v-for="student in lobby.students" :key="student.id" class="c-row" :class="student.status">
-              <span class="c-avatar">
+            <button class="share" @click="share">Telegramda ulashish</button>
+          </div>
+
+          <!-- Who is here -->
+          <div class="t-section">
+            <span class="t-label">QOʼSHILGANLAR · {{ joined.length }}</span>
+            <span class="live"><i></i> jonli yangilanadi</span>
+          </div>
+
+          <div v-if="lobby.students.length" class="t-rows">
+            <div
+              v-for="student in lobby.students"
+              :key="student.id"
+              class="t-row"
+              :class="{ absent: student.status === 'absent' }"
+            >
+              <span class="t-avatar">
                 <img v-if="student.avatar" :src="student.avatar" alt="" />
                 <template v-else>{{ student.name.charAt(0) }}</template>
               </span>
-              <b>{{ student.name }}</b>
-              <span class="c-state">{{ LABELS[student.status] }}</span>
+              <span class="t-row-text"><b>{{ student.name }}</b></span>
+              <span class="state" :class="student.status">
+                <i v-if="student.joined"></i>{{ LABELS[student.status] }}
+              </span>
             </div>
-          </section>
+          </div>
+
+          <div v-else class="t-empty">
+            <span class="t-empty-ic" v-html="TeacherIcon.group"></span>
+            <h3>Hali hech kim qoʼshilmadi</h3>
+            <p>Havolani oʼquvchilarga yuboring — ismlar shu yerda paydo boʼladi.</p>
+          </div>
         </template>
 
-        <p v-else class="c-loading">Yuklanmoqda…</p>
+        <p v-else class="t-loading">Yuklanmoqda…</p>
       </div>
 
-      <div class="c-foot">
-        <button v-if="lobby?.status === 'lobby'" class="btn btn-primary" :disabled="!canStart || starting" @click="start">
-          Musobaqani boshlash<template v-if="joined.length"> · {{ joined.length }} oʼquvchi</template>
+      <div class="t-foot">
+        <button
+          v-if="lobby?.status === 'lobby'"
+          class="btn btn-primary"
+          :disabled="!canStart || starting"
+          @click="start"
+        >
+          {{ starting ? 'Boshlanmoqda…' : 'Musobaqani boshlash' }}
+          <template v-if="joined.length"> · {{ joined.length }} oʼquvchi</template>
         </button>
-        <button v-else class="btn btn-primary" @click="close">Musobaqani yakunlash</button>
+        <button v-else class="btn btn-primary" :disabled="closing" @click="finish">
+          {{ closing ? 'Yakunlanmoqda…' : running ? 'Musobaqani yakunlash' : 'Natijalarni koʼrish' }}
+        </button>
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.c-lobby {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-  z-index: 30;
+.lobby { background: var(--canvas); z-index: 30; }
+
+.vs-tag {
+  background: var(--wash-2);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 6px 10px;
+  flex: none;
 }
 
-.c-head {
+/* ------------------------------------------------------------------- link */
+
+.link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 18px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--card);
-}
-
-.c-back {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-sm);
-  background: var(--tint);
-  color: var(--ink);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.c-head h1 {
-  font-family: 'Sora', sans-serif;
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.c-head p {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.c-vs {
-  margin-left: auto;
-  padding: 6px 12px;
-  border-radius: var(--r-pill);
-  background: var(--gold);
-  color: var(--gold-ink);
-  font-family: 'Sora', sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .06em;
-}
-
-.c-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 18px 20px;
-}
-
-.c-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: .1em;
-  color: var(--muted);
-}
-
-.c-link-card {
-  background: var(--card);
-  border-radius: var(--r-lg);
-  padding: 16px;
-  border: 1px solid var(--line);
-}
-
-.c-link {
-  display: block;
+  gap: 10px;
   width: 100%;
-  margin-top: 10px;
+  border: 1.5px dashed var(--line-4);
+  border-radius: 13px;
   padding: 12px 14px;
-  border-radius: var(--r-md);
-  background: var(--tint);
-  color: var(--ink);
+  margin-top: 10px;
+  background: none;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+}
+
+.link > span:first-child {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
   font-size: 13px;
   font-weight: 700;
-  text-align: left;
+  color: var(--blue);
   word-break: break-all;
 }
 
-.c-hint {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--muted);
-  line-height: 1.5;
-  margin-top: 10px;
-}
+.copy-ic { color: var(--muted); display: grid; place-items: center; flex: none; }
 
-.c-share {
+.warn { display: flex; align-items: flex-start; gap: 9px; margin-top: 11px; }
+.warn > span:first-child { color: var(--gold); display: grid; place-items: center; flex: none; margin-top: 1px; }
+.warn b { font-size: 11.5px; font-weight: 700; color: var(--gold-text); line-height: 1.5; }
+
+.share {
   width: 100%;
   margin-top: 12px;
   padding: 11px;
-  border-radius: var(--r-md);
-  background: var(--tint);
-  color: var(--brand);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.c-list {
-  margin-top: 20px;
-}
-
-.c-list-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.c-live {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--brand);
-}
-
-.c-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--r-md);
-  background: var(--card);
   border: 1px solid var(--line);
-  margin-bottom: 8px;
-}
-
-.c-row b {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.c-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--tint);
-  display: grid;
-  place-items: center;
+  border-radius: var(--r-md);
+  background: none;
+  font-family: 'Manrope', sans-serif;
   font-size: 13px;
   font-weight: 800;
-  color: var(--brand);
-  overflow: hidden;
-  flex-shrink: 0;
+  color: var(--green);
+  cursor: pointer;
 }
 
-.c-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+/* ------------------------------------------------------------------ roster */
+
+.live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.live i { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--green); }
+
+.t-row.absent { opacity: .7; }
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  background: var(--wash-2);
+  color: var(--faint);
+  flex: none;
 }
 
-.c-state {
-  margin-left: auto;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--muted);
-}
+.state i { width: 6px; height: 6px; border-radius: var(--r-pill); background: currentColor; }
 
-.c-row.ready .c-state,
-.c-row.finished .c-state {
-  color: var(--brand);
-}
-
-.c-row.playing .c-state {
-  color: var(--gold-deep, var(--brand));
-}
-
-.c-row.absent {
-  opacity: .6;
-}
-
-.c-loading {
-  text-align: center;
-  padding: 40px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.c-foot {
-  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--card);
-}
-
-.c-foot .btn {
-  width: 100%;
-}
-
-.btn:disabled {
-  opacity: .45;
-  pointer-events: none;
-}
+.state.ready, .state.finished { background: var(--green-soft); color: var(--green-dark); }
+.state.playing { background: var(--blue-soft); color: var(--blue); }
 </style>

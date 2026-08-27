@@ -1,27 +1,25 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import Onboarding from './components/onboarding/Onboarding.vue'
 import RolePicker from './components/onboarding/RolePicker.vue'
 import AppShell from './components/app/AppShell.vue'
 import TeacherShell from './components/teacher/TeacherShell.vue'
 import Toast from './components/ui/Toast.vue'
 import Mascot from './components/ui/Mascot.vue'
-import { computed } from 'vue'
 import { store } from './lib/store'
 
-const entered = ref(false)
-const roleChosen = ref(false)
+const user = computed(() => store.state.user)
 
-const isTeacher = computed(() => store.state.user?.role === 'teacher')
+/*
+ * Which shell to show is derived from the account, never from a local flag —
+ * that is what lets the profile screens on both sides swap roles and have the
+ * app follow immediately.
+ */
+const askRole = computed(() => Boolean(user.value) && !user.value.role_chosen)
+const isTeacher = computed(() => user.value?.role === 'teacher')
+const needsOnboarding = computed(() => !isTeacher.value && !user.value?.onboarded)
 
-onMounted(async () => {
-  await store.boot()
-
-  // Anyone already set up goes straight in; the role question is only for
-  // someone opening the app for the first time.
-  entered.value = Boolean(store.state.user?.onboarded)
-  roleChosen.value = entered.value
-})
+onMounted(() => store.boot())
 </script>
 
 <template>
@@ -47,14 +45,11 @@ onMounted(async () => {
       <button class="btn btn-primary retry" @click="() => location.reload()">Qayta urinish</button>
     </div>
 
-    <RolePicker
-      v-else-if="!roleChosen"
-      @chosen="(role) => { roleChosen = true; if (role === 'teacher') entered = true }"
-    />
+    <RolePicker v-else-if="askRole" />
 
     <TeacherShell v-else-if="isTeacher" />
 
-    <Onboarding v-else-if="!entered" @enter="entered = true" />
+    <Onboarding v-else-if="needsOnboarding" @enter="store.refreshUser()" />
 
     <AppShell v-else />
 

@@ -1,31 +1,45 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { backIcon } from '../../lib/icons2'
+/**
+ * UT-02 «Bosqich tahriri» — the teacher types the pairs themselves.
+ *
+ * The artboard separates the two jobs: one row at the top to add a word, and
+ * a plain numbered list below it to review and delete. That reads far better
+ * on a phone than a column of paired inputs that all look editable.
+ */
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
+import { telegram } from '../../lib/telegram'
 
 const props = defineProps({ stageId: Number })
 const emit = defineEmits(['close', 'saved'])
 
 const stage = ref(null)
 const title = ref('')
-const rows = ref([])
+const isExam = ref(false)
+const words = ref([])
+const draft = ref({ en: '', translation: '' })
 const loading = ref(true)
 const saving = ref(false)
+const enField = ref(null)
 
 const maxWords = computed(() => stage.value?.max_words ?? 20)
-const filled = computed(() => rows.value.filter((r) => r.en.trim() && r.translation.trim()).length)
+const full = computed(() => words.value.length >= maxWords.value)
+const percent = computed(() => Math.min(Math.round((words.value.length / maxWords.value) * 100), 100))
+const canAdd = computed(() =>
+  Boolean(draft.value.en.trim() && draft.value.translation.trim()) && !full.value,
+)
 
 async function load() {
   loading.value = true
 
   try {
-    const data = await api.teacher.stage(props.stageId)
-    stage.value = data.stage
-    title.value = data.stage.title ?? ''
-
-    rows.value = data.stage.words.map((w) => ({ en: w.en, translation: w.translation ?? '' }))
-    ensureBlankRow()
+    const { stage: data } = await api.teacher.stage(props.stageId)
+    stage.value = data
+    title.value = data.title ?? ''
+    isExam.value = data.type === 'exam'
+    words.value = data.words.map((w) => ({ en: w.en, translation: w.translation ?? '' }))
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -34,26 +48,29 @@ async function load() {
   }
 }
 
-/** Always leave one empty pair at the bottom to type into. */
-function ensureBlankRow() {
-  const last = rows.value[rows.value.length - 1]
+function add() {
+  if (!canAdd.value) return
 
-  if (rows.value.length < maxWords.value && (!last || last.en.trim() || last.translation.trim())) {
-    rows.value.push({ en: '', translation: '' })
+  const en = draft.value.en.trim()
+
+  if (words.value.some((w) => w.en.toLowerCase() === en.toLowerCase())) {
+    store.toast('Bu soʼz roʼyxatda bor')
+    return
   }
+
+  words.value.push({ en, translation: draft.value.translation.trim() })
+  draft.value = { en: '', translation: '' }
+  telegram.haptic()
+  nextTick(() => enField.value?.focus())
 }
 
 function drop(index) {
-  rows.value.splice(index, 1)
-  ensureBlankRow()
+  words.value.splice(index, 1)
+  telegram.haptic()
 }
 
 async function save() {
-  const words = rows.value
-    .map((r) => ({ en: r.en.trim(), translation: r.translation.trim() }))
-    .filter((r) => r.en && r.translation)
-
-  if (!words.length) {
+  if (!words.value.length) {
     store.toast('Kamida bitta soʼz kiriting')
     return
   }
@@ -61,7 +78,12 @@ async function save() {
   saving.value = true
 
   try {
-    await api.teacher.saveStage(props.stageId, title.value.trim() || null, words)
+    await api.teacher.saveStage(
+      props.stageId,
+      title.value.trim() || null,
+      words.value,
+      isExam.value ? 'exam' : 'normal',
+    )
     store.toast('✅ Saqlandi')
     emit('saved')
     emit('close')
@@ -77,57 +99,88 @@ onMounted(load)
 
 <template>
   <div class="overlay show editor">
-    <header class="editor-head">
-      <button class="back" @click="$emit('close')" v-html="backIcon"></button>
-      <div style="flex: 1">
-        <div class="title">
-          {{ stage ? `${stage.position}-bosqich` : 'Bosqich' }}{{ title ? ` · ${title}` : '' }}
-        </div>
-        <div class="sub-line">{{ stage?.path?.title }}{{ stage?.path?.subtitle ? ` · ${stage.path.subtitle}` : '' }}</div>
+    <header class="t-head">
+      <button class="t-back" aria-label="Orqaga" @click="emit('close')">
+        <span v-html="TeacherIcon.chevron" class="flip"></span>
+      </button>
+      <div class="t-head-main">
+        <h1>{{ stage ? `${stage.position}-bosqich` : 'Bosqich' }}{{ title ? ` · ${title}` : '' }}</h1>
+        <p>{{ stage?.path?.title }}{{ stage?.path?.subtitle ? ` · ${stage.path.subtitle}` : '' }}</p>
       </div>
-      <span class="count">{{ filled }}/{{ maxWords }} soʼz</span>
+      <span class="t-pill green">{{ words.length }}/{{ maxWords }} soʼz</span>
     </header>
 
-    <div class="editor-body">
-      <template v-if="!loading">
-        <label class="field">
-          <span>BOSQICH NOMI</span>
-          <input v-model="title" placeholder="Masalan: Maktab jihozlari" />
+    <div class="t-body">
+      <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
+
+      <template v-else>
+        <label class="t-field"><span>BOSQICH NOMI</span>
+          <input v-model="title" placeholder="Masalan: Maktab jihozlari" maxlength="60" />
         </label>
 
-        <p class="rule">
-          Bir bosqichga <b>{{ maxWords }} tagacha</b> soʼz qoʼshiladi. Bosqichlar soni — cheksiz.
-        </p>
+        <div class="t-note">
+          <span v-html="TeacherIcon.info"></span>
+          <b>Bir bosqichga <b>{{ maxWords }} tagacha</b> soʼz qoʼshiladi. Bosqichlar soni — cheksiz.</b>
+        </div>
 
-        <div class="rows">
-          <div v-for="(row, index) in rows" :key="index" class="row">
-            <span class="num">{{ index + 1 }}</span>
-            <input
-              v-model="row.en"
-              class="en"
-              placeholder="yangi soʼz (EN)"
-              autocapitalize="off"
-              @input="ensureBlankRow"
-            />
-            <input
-              v-model="row.translation"
-              class="uz"
-              placeholder="tarjima"
-              @input="ensureBlankRow"
-            />
-            <button
-              v-if="row.en || row.translation"
-              class="drop"
-              @click="drop(index)"
-            >×</button>
+        <label class="exam">
+          <span class="exam-text">
+            <b>Imtihon bosqichi</b>
+            <i>oldingi bosqichlardan tasodifiy savollar</i>
+          </span>
+          <input v-model="isExam" type="checkbox" class="sr" />
+          <span class="switch" :class="{ on: isExam }"></span>
+        </label>
+
+        <div class="t-meter"><i :style="{ width: `${percent}%` }"></i></div>
+
+        <!-- Add row -->
+        <div class="add" :class="{ off: full }">
+          <input
+            ref="enField"
+            v-model="draft.en"
+            placeholder="yangi soʼz (EN)"
+            autocapitalize="off"
+            autocomplete="off"
+            spellcheck="false"
+            :disabled="full"
+            @keyup.enter="add"
+          />
+          <input
+            v-model="draft.translation"
+            placeholder="tarjima (UZ)"
+            autocomplete="off"
+            :disabled="full"
+            @keyup.enter="add"
+          />
+          <button class="add-btn" :disabled="!canAdd" aria-label="Qoʼshish" @click="add">
+            <span v-html="TeacherIcon.plus"></span>
+          </button>
+        </div>
+
+        <p v-if="full" class="t-more">Chegara toʼldi — yangi soʼzlar uchun yangi bosqich oching.</p>
+
+        <div v-if="words.length" class="t-rows">
+          <div v-for="(word, index) in words" :key="`${word.en}-${index}`" class="t-row">
+            <span class="idx">{{ index + 1 }}</span>
+            <span class="pair"><b>{{ word.en }}</b> — {{ word.translation }}</span>
+            <button class="del" aria-label="Oʼchirish" @click="drop(index)">
+              <span v-html="TeacherIcon.trash"></span>
+            </button>
           </div>
+        </div>
+
+        <div v-else class="t-empty">
+          <span class="t-empty-ic" v-html="TeacherIcon.board"></span>
+          <h3>Lugʼat boʼsh</h3>
+          <p>Yuqoridagi maydonlarga inglizcha soʼz va tarjimasini yozib, ➕ ni bosing.</p>
         </div>
       </template>
     </div>
 
-    <div class="editor-foot">
-      <button class="btn btn-primary" :disabled="saving || !filled" @click="save">
-        {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+    <div class="t-foot">
+      <button class="btn btn-primary" :disabled="saving || loading || !words.length" @click="save">
+        {{ saving ? 'Saqlanmoqda…' : 'Saqlash' }}
       </button>
     </div>
   </div>
@@ -136,81 +189,132 @@ onMounted(load)
 <style scoped>
 .editor { background: var(--canvas); z-index: 20; }
 
-.editor-head {
-  display: flex; align-items: center; gap: 12px;
-  padding: 20px 22px 14px; background: var(--card);
-  border-bottom: 1px solid var(--wash); flex: none;
-}
+.flip { display: grid; place-items: center; transform: rotate(180deg); }
 
-.back {
-  width: 36px; height: 36px; border-radius: 12px;
-  border: 1px solid var(--line); background: none; color: var(--ink);
-  display: grid; place-items: center; cursor: pointer; flex: none;
-}
+/* --------------------------------------------------------------- exam row */
 
-.title { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 700; }
-.sub-line { font-size: 11.5px; font-weight: 600; color: var(--faint); }
-
-.count {
-  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
-  color: var(--green); flex-shrink: 0;
-}
-
-.editor-body { flex: 1; overflow-y: auto; padding: 14px 22px 22px; }
-
-.field { display: block; }
-
-.field span {
-  display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
-  color: var(--faint); margin-bottom: 6px;
-}
-
-.field input {
-  width: 100%; border: 1px solid var(--line); border-radius: 12px;
-  padding: 12px 14px; font-family: 'Manrope', sans-serif;
-  font-size: 14px; font-weight: 700; color: var(--ink); outline: none;
+.exam {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  cursor: pointer;
 }
 
-.field input:focus { border-color: var(--green); }
-
-.rule {
-  font-size: 11.5px; font-weight: 600; color: var(--faint);
-  margin: 12px 0; text-align: center;
+.exam-text { flex: 1; }
+.exam-text b { display: block; font-size: 13.5px; font-weight: 800; }
+.exam-text i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--faint);
+  margin-top: 2px;
 }
 
-.rule b { color: var(--ink); font-weight: 800; }
+.sr { position: absolute; opacity: 0; pointer-events: none; }
 
-.rows { display: flex; flex-direction: column; gap: 8px; }
-
-.row {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: 12px; padding: 8px 10px;
+.switch {
+  width: 40px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  background: var(--line-3);
+  position: relative;
+  flex: none;
+  transition: background .15s;
 }
 
-.num {
-  width: 20px; text-align: center;
-  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700;
-  color: var(--faint); flex-shrink: 0;
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(22, 32, 26, .2);
+  transition: transform .15s;
 }
 
-.row input {
-  border: none; background: none; outline: none;
-  font-family: 'Manrope', sans-serif; font-size: 13.5px; font-weight: 700;
-  color: var(--ink); min-width: 0;
+.switch.on { background: var(--green); }
+.switch.on::after { transform: translateX(16px); }
+
+/* ---------------------------------------------------------------- add row */
+
+.add { display: flex; gap: 9px; }
+.add.off { opacity: .5; }
+
+.add input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 13px;
+  padding: 12px 14px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  outline: none;
 }
 
-.row .en { flex: 1; }
-.row .uz { flex: 1; color: var(--muted); }
+.add input::placeholder { color: var(--faint); font-weight: 600; }
+.add input:focus { border-color: var(--green); }
 
-.row input::placeholder { color: var(--faint); font-weight: 600; }
-
-.drop {
-  width: 22px; height: 22px; border: none; background: none;
-  color: var(--faint); font-size: 18px; line-height: 1;
-  cursor: pointer; flex-shrink: 0;
+.add-btn {
+  width: 46px;
+  border: none;
+  border-radius: 13px;
+  background: var(--green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
 }
 
-.editor-foot { padding: 14px 22px 26px; background: var(--card); border-top: 1px solid var(--wash); }
+.add-btn:disabled { opacity: .4; cursor: default; }
+
+/* ------------------------------------------------------------------ rows */
+
+.idx {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--wash-2);
+  color: var(--faint);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+.pair {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pair b { font-size: 14px; font-weight: 800; color: var(--ink); }
+
+.del {
+  border: none;
+  background: none;
+  color: var(--line-4);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  padding: 4px;
+}
 </style>
