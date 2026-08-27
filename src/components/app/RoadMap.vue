@@ -2,10 +2,18 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AddPathSheet from '../group/AddPathSheet.vue'
 import GroupLeaderboard from '../group/GroupLeaderboard.vue'
+import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const emit = defineEmits(['open', 'exam'])
+
+/**
+ * The road lives inside a tab that is `display:none` until selected. Scrolling
+ * a hidden element does nothing, so the shell tells us when we become visible
+ * and only then do we jump to the player's own step.
+ */
+const props = defineProps({ active: { type: Boolean, default: true } })
 
 // Geometry from the artboard: 88px nodes inset 26px from either edge,
 // stacked 96px apart, alternating sides.
@@ -22,6 +30,33 @@ const paths = computed(() => store.state.paths)
 const activePath = computed(() => store.state.activePath)
 const currentPath = computed(() => paths.value.find((p) => p.id === activePath.value))
 const isGroupPath = computed(() => currentPath.value?.kind === 'group')
+
+/** OQ-03 — the class is joined and approved, but this month is not paid. */
+const awaitingPayment = computed(() => Boolean(currentPath.value?.payment_required))
+
+/** TN-02 draws the map on near-black with a much darker dashed line. */
+const linkColour = computed(() => (store.state.dark ? '#313D34' : '#D9D6C8'))
+
+const money = (value) => String(value ?? 0).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')
+
+function explainPayment() {
+  telegram.haptic()
+  store.toast('Toʼlov tizimi hali ulanmagan — ustozingizga murojaat qiling')
+}
+
+/** Requests the teacher has not answered yet — otherwise they vanish. */
+const pendingGroups = computed(() => store.state.groups.filter((g) => g.status === 'pending'))
+
+async function cancelRequest(group) {
+  if (!confirm(`«${group.title}» guruhiga soʼrov bekor qilinsinmi?`)) return
+
+  try {
+    await api.leaveGroup(group.id)
+    await store.refreshGroups()
+  } catch (error) {
+    store.toast(error.message)
+  }
+}
 
 /** Newest node on top, so the path reads as climbing away from the start. */
 const nodes = computed(() =>
@@ -67,7 +102,11 @@ function style(node) {
 function open(node) {
   if (node.status === 'locked') {
     telegram.notify('warning')
-    store.toast('🔒 Avval oldingi bosqichni tugating')
+    store.toast(
+      node.lock_reason === 'payment'
+        ? '🔒 Bu yoʼl toʼlovdan soʼng ochiladi'
+        : '🔒 Avval oldingi bosqichni tugating',
+    )
     return
   }
 
@@ -96,11 +135,15 @@ const canvasEl = ref(null)
  * well down it, so open on that step rather than at the top.
  */
 async function focusCurrent() {
+  if (!props.active) return
+
   await nextTick()
 
   const el = canvasEl.value
   const current = nodes.value.find((n) => n.status === 'in_progress') ?? nodes.value[nodes.value.length - 1]
-  if (!el || !current) return
+
+  // A hidden tab has no height to centre against, so retry once it has one.
+  if (!el || !current || !el.clientHeight) return
 
   requestAnimationFrame(() => {
     el.scrollTop = Math.max(0, current.top - el.clientHeight / 2 + NODE / 2)
@@ -109,6 +152,9 @@ async function focusCurrent() {
 
 onMounted(focusCurrent)
 watch(() => store.state.road.length, focusCurrent)
+watch(() => props.active, (on) => { if (on) focusCurrent() })
+// Switching between the personal road and a class road re-centres too.
+watch(activePath, focusCurrent)
 </script>
 
 <template>
@@ -135,6 +181,16 @@ watch(() => store.state.road.length, focusCurrent)
       </button>
     </div>
 
+    <!-- A join request the teacher has not answered yet -->
+    <div v-for="group in pendingGroups" :key="group.id" class="waiting">
+      <span class="waiting-dot"></span>
+      <span class="waiting-text">
+        <b>{{ group.title }} — soʼrov yuborildi</b>
+        <i>{{ group.teacher }} tasdiqlagach bosqichlar shu yerda chiqadi</i>
+      </span>
+      <button class="waiting-x" aria-label="Bekor qilish" @click="cancelRequest(group)">×</button>
+    </div>
+
     <!-- Whose path this is, and where the player stands in it -->
     <button v-if="isGroupPath" class="group-bar" @click="showingBoard = true">
       <span class="group-who">
@@ -144,14 +200,14 @@ watch(() => store.state.road.length, focusCurrent)
       <span class="group-cta">Guruh statistikasi ›</span>
     </button>
 
-    <div ref="canvasEl" class="canvas">
+    <div ref="canvasEl" class="canvas" :class="{ shut: awaitingPayment }">
       <div class="v-inner" :style="{ height: canvasHeight + 'px' }">
         <svg class="links" :viewBox="`0 0 ${WIDTH} ${canvasHeight}`" preserveAspectRatio="none" fill="none">
           <path
             v-for="(d, i) in connectors"
             :key="i"
             :d="d"
-            stroke="#D9D6C8"
+            :stroke="linkColour"
             stroke-width="4.5"
             stroke-linecap="round"
             stroke-dasharray="8 12"
@@ -165,7 +221,15 @@ watch(() => store.state.road.length, focusCurrent)
 
           <button
             class="node"
-            :class="[node.status, { exam: node.type === 'exam', create: isCreate(node), taught: node.from_group }]"
+            :class="[
+              node.status,
+              {
+                exam: node.type === 'exam',
+                create: isCreate(node),
+                taught: node.from_group,
+                paywalled: node.lock_reason === 'payment',
+              },
+            ]"
             :style="style(node)"
             @click="open(node)"
           >
@@ -212,10 +276,29 @@ watch(() => store.state.road.length, focusCurrent)
       </div>
     </div>
 
+    <!-- OQ-03: what is behind the lock, and why -->
+    <div v-if="awaitingPayment" class="paywall">
+      <span class="paywall-ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B4E00" stroke-width="1.8" stroke-linecap="round">
+          <rect x="4.5" y="10.5" width="15" height="10" rx="3" />
+          <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+        </svg>
+      </span>
+      <h3>Bosqichlar toʼlovdan soʼng ochiladi</h3>
+      <p>
+        Ustozingiz «oʼquvchi toʼlaydi» rejimini tanlagan.
+        Yoʼl uchun oyiga <b>{{ money(currentPath.price) }} soʼm</b>.
+      </p>
+      <button class="btn btn-primary" @click="explainPayment">
+        Toʼlash — {{ money(currentPath.price) }} soʼm/oy
+      </button>
+      <button class="paywall-ref" @click="adding = true">🎁 Doʼst taklif qiling — 3 kun Premium bepul</button>
+    </div>
+
     <!-- The sheet shows its own confirmation, so closing is the player's call. -->
     <AddPathSheet
       v-if="adding"
-      @joined="() => store.refreshRoad()"
+      @joined="() => { store.refreshRoad(); store.refreshGroups() }"
       @close="adding = false"
     />
 
@@ -233,6 +316,8 @@ watch(() => store.state.road.length, focusCurrent)
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* The paywall card is anchored to the map, not to the whole screen. */
+  position: relative;
 }
 
 .path-tabs {
@@ -320,6 +405,108 @@ watch(() => store.state.road.length, focusCurrent)
   cursor: pointer;
 }
 
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 22px 10px;
+  padding: 11px 14px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  flex: none;
+}
+
+.waiting-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--gold);
+  flex: none;
+  animation: waitpulse 1.6s ease-in-out infinite;
+}
+
+@keyframes waitpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
+.waiting-text { flex: 1; min-width: 0; }
+.waiting-text b { display: block; font-size: 12.5px; font-weight: 800; color: var(--gold-text); }
+.waiting-text i {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-text);
+  opacity: .8;
+  margin-top: 2px;
+}
+
+.waiting-x {
+  border: none;
+  background: none;
+  color: var(--gold);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+  padding: 0 2px;
+}
+
+/* TN-02 — the map is the one surface that does not take its colour from a
+   token, so night mode has to restate the whole set. */
+.app.dark .canvas { background: #0D1511; }
+
+.canvas.shut { background: #EDDFAF; }
+.app.dark .canvas.shut { background: #2A2416; }
+
+.paywall {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 16px;
+  z-index: 6;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 24px 48px -20px rgba(22, 32, 26, .35);
+  text-align: center;
+}
+
+.paywall-ic {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+}
+
+.paywall h3 { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 700; margin-top: 10px; }
+
+.paywall p {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+.paywall p b { color: var(--ink); font-weight: 800; }
+.paywall .btn { margin-top: 13px; }
+
+.paywall-ref {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  margin-top: 9px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--faint);
+  cursor: pointer;
+}
+
 .canvas {
   flex: 1;
   overflow-y: auto;
@@ -371,6 +558,41 @@ watch(() => store.state.road.length, focusCurrent)
   background: linear-gradient(165deg, #E3E7E3, #D2D8D2);
   box-shadow: 0 5px 0 #BEC6BE;
   color: #7E8A81;
+}
+
+.app.dark .node.locked {
+  background: #3A3322;
+  box-shadow: 0 5px 0 #292414;
+  color: #9A8F6E;
+}
+
+.app.dark .node.in_progress {
+  background: linear-gradient(165deg, #3B82F6, #2A6BD8);
+  box-shadow: 0 5px 0 #2358B8;
+}
+
+.app.dark .node.exam {
+  background: #C9A54E;
+  box-shadow: 0 5px 0 #97772E;
+  color: #3A2E08;
+}
+
+/* A create card is also `in_progress`, so its gradient and lift have to be
+   cleared or the blue edge shows under the dashed outline. */
+.app.dark .node.create,
+.node.create {
+  background: var(--card);
+  box-shadow: none;
+}
+
+.app.dark .node.create { border-color: #313D34; color: var(--faint); }
+
+/* Shut for money rather than for progress — OQ-03 draws these in gold so the
+   difference is visible at a glance. */
+.node.locked.paywalled {
+  background: linear-gradient(165deg, #F6ECC4, #E9D794);
+  box-shadow: 0 5px 0 #D3BE7C;
+  color: #8A7431;
 }
 
 .node.exam {

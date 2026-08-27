@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LearnedWords from './LearnedWords.vue'
+import MyGroupsSheet from '../group/MyGroupsSheet.vue'
 import ReferralSheet from '../sheets/ReferralSheet.vue'
 import PremiumSheet from '../sheets/PremiumSheet.vue'
 import Modal from '../ui/Modal.vue'
@@ -13,6 +14,7 @@ import { telegram } from '../../lib/telegram'
 const user = computed(() => store.state.user)
 
 const showLearned = ref(false)
+const showGroups = ref(false)
 const sheet = ref(null)   // 'referral' | 'premium'
 const editing = ref(null)          // 'lang' | 'days' | 'time'
 const draftLang = ref(null)
@@ -163,6 +165,15 @@ const daysLabel = computed(() => {
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
+      <button class="v-row" @click="showGroups = true">
+        <span class="v-row-ic" v-html="TeacherIcon.group"></span>
+        <span class="v-row-t">Guruhlarim</span>
+        <span v-if="store.state.groups.length" class="v-row-v">
+          {{ store.state.groups.filter((g) => g.status === 'active').length }}
+        </span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
       <button class="v-row" @click="sheet = 'referral'">
         <span class="v-row-ic" v-html="RowIcon.gift"></span>
         <span class="v-row-t">Doʼstlarni taklif qilish</span>
@@ -205,6 +216,7 @@ const daysLabel = computed(() => {
 
     <Teleport to="#lx-overlays">
       <LearnedWords v-if="showLearned" @close="showLearned = false" />
+      <MyGroupsSheet v-if="showGroups" @close="showGroups = false" />
       <ReferralSheet v-if="sheet === 'referral'" @close="sheet = null" />
       <PremiumSheet v-if="sheet === 'premium'" @close="sheet = null" />
     </Teleport>

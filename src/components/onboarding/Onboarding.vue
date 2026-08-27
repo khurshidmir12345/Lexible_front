@@ -85,6 +85,13 @@ function sendTeacher() {
   telegram.notify('success')
 }
 
+/**
+ * The code is only acted on when onboarding is submitted, so the request can
+ * still be refused there — a wrong ID has to be reported rather than silently
+ * dropped, which is what used to happen.
+ */
+const teacherProblem = ref(null)
+
 const summary = computed(() => {
   const language = LANGUAGES.find((l) => l.code === answers.value.native_lang)
   const level = LEVELS.find((l) => l.code === answers.value.cefr_level)
@@ -104,7 +111,8 @@ async function finish() {
   failure.value = null
 
   try {
-    await store.completeOnboarding({ ...answers.value, study_days: orderedDays() })
+    const result = await store.completeOnboarding({ ...answers.value, study_days: orderedDays() })
+    teacherProblem.value = result?.teacher_problem ?? null
     telegram.notify('success')
     go('done')
   } catch (error) {
@@ -144,6 +152,14 @@ async function finish() {
           <span>{{ label }}</span><b>{{ value }}</b>
         </div>
       </div>
+
+      <p v-if="teacherProblem" class="ob-problem">
+        ⚠️ {{ teacherProblem }}<br />
+        Yoʼl sahifasidagi <b>+</b> tugmasi orqali qayta urinib koʼring.
+      </p>
+      <p v-else-if="answers.teacher_code" class="ob-note" style="text-align: center">
+        📨 Ustozga soʼrov yuborildi — tasdiqlangach bosqichlar yoʼlingizda chiqadi.
+      </p>
       <div class="ob-grow"></div>
       <button class="btn btn-primary" @click="emit('enter')">Yoʼlni boshlash</button>
     </section>
@@ -260,7 +276,12 @@ async function finish() {
             <span>USTOZ ID SI</span>
             <input v-model="teacherInput" placeholder="Masalan: TCHR-2381" autocomplete="off" />
           </label>
-          <p v-if="teacherSent" class="ob-note">✓ Soʼrov yuborildi. Kutmasdan ham oʼrganishingiz mumkin.</p>
+          <p v-if="teacherSent" class="ob-note">
+            ✓ Kod qabul qilindi — yakunlaganingizda ustozga soʼrov ketadi.
+          </p>
+          <p class="ob-note faint">
+            Ustoz ID (TCHR-2381) yoki guruh kodi (5A-KITOB) — ikkalasi ham boʼladi.
+          </p>
           <button
             class="btn btn-soft"
             style="margin-top: 12px"
@@ -658,6 +679,21 @@ async function finish() {
 
 .ob-field input:focus {
   border-color: var(--green);
+}
+
+.ob-note.faint { color: var(--faint); font-weight: 600; }
+
+.ob-problem {
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold-text);
+  line-height: 1.5;
+  text-align: center;
 }
 
 .ob-note {

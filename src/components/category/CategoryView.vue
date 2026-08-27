@@ -77,7 +77,7 @@ async function load() {
       store.toast(`✨ ${data.auto_filled} ta yangi soʼz tayyorlandi`)
     }
 
-    if (!category.value.title) {
+    if (!category.value.title && category.value.editable !== false) {
       titleDraft.value = ''
       naming.value = true
     }
@@ -192,7 +192,15 @@ async function onTestFinished(result) {
   store.refreshDashboard().catch(() => {})
 }
 
-const initial = (word) => word.en.charAt(0).toLowerCase()
+/** The 3D icon when we have one, else the emoji, else the first letter. */
+const initial = (word) => word.emoji || word.en.charAt(0).toLowerCase()
+
+/**
+ * A stage handed down by a teacher belongs to the class: the player studies
+ * it and is ranked on it, but cannot rename it or touch its vocabulary.
+ */
+const editable = computed(() => category.value?.editable !== false)
+const fromGroup = computed(() => Boolean(category.value?.from_group))
 
 onMounted(load)
 </script>
@@ -202,14 +210,26 @@ onMounted(load)
     <header class="cat-head">
       <button class="cat-back" @click="$emit('close')" v-html="backIcon"></button>
       <div style="flex: 1">
-        <div class="cat-title">{{ category?.title ?? 'Kategoriya' }}</div>
-        <div class="cat-sub">{{ words.length }} ta soʼz</div>
+        <div class="cat-title">
+          <template v-if="fromGroup">{{ category.position }}-bosqich · </template>{{ category?.title ?? 'Kategoriya' }}
+        </div>
+        <div class="cat-sub">
+          {{ words.length }} ta soʼz<template v-if="fromGroup"> · {{ category.group?.teacher }}</template>
+        </div>
       </div>
       <span class="cat-pct v-num">{{ overall }}%</span>
     </header>
 
     <div class="c-body">
       <template v-if="!loading && words.length">
+        <div v-if="fromGroup" class="taught">
+          <span class="taught-badge">{{ category.group?.badge }}</span>
+          <span class="taught-text">
+            <b>{{ category.group?.title }}</b>
+            <i>Ustoz tuzgan bosqich — lugʼat oʼzgarmaydi</i>
+          </span>
+        </div>
+
         <div class="actions">
           <button class="btn btn-primary play" @click="startTest">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5v15l12-7.5z" /></svg>
@@ -242,11 +262,11 @@ onMounted(load)
             <button class="pct-pill" :class="pillClass(word.overall)" @click="openWordMastery(word)">
               {{ word.overall }}%
             </button>
-            <button class="drop" @click="removing = word">×</button>
+            <button v-if="editable" class="drop" @click="removing = word">×</button>
           </div>
         </div>
 
-        <button class="add-more" @click="addingWords = true">+ Yana lugʼat qoʼshish</button>
+        <button v-if="editable" class="add-more" @click="addingWords = true">+ Yana lugʼat qoʼshish</button>
       </template>
 
       <div v-else-if="!loading" class="cat-empty">
@@ -461,6 +481,42 @@ onMounted(load)
 
 .word-row:last-child {
   border-bottom: none;
+}
+
+.taught {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  padding: 12px 14px;
+}
+
+.taught-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--gold);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+
+.taught-text { flex: 1; min-width: 0; }
+.taught-text b { display: block; font-size: 13.5px; font-weight: 800; color: var(--gold-text); }
+.taught-text i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gold-text);
+  opacity: .8;
+  margin-top: 2px;
 }
 
 .tile-letter {

@@ -41,8 +41,13 @@ export const api = {
   updateMe: (data) => request('PATCH', '/me', data),
   chooseRole: (role) => request('POST', '/me/role', { role }),
 
-  joinGroup: (code) => request('POST', '/groups/join', { code }),
+  // Accepts a group code (5A-KITOB) or a teacher ID (TCHR-2381). When the ID
+  // covers several classes the reply is {status:'choose', groups:[…]} and the
+  // student re-calls with the group they picked.
+  joinGroup: (code, groupId = null) =>
+    request('POST', '/groups/join', { code, ...(groupId ? { group_id: groupId } : {}) }),
   myGroups: () => request('GET', '/groups/mine'),
+  leaveGroup: (id) => request('DELETE', `/groups/${id}/leave`),
 
   teacher: {
     dashboard: () => request('GET', '/teacher/dashboard'),

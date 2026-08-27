@@ -130,7 +130,11 @@ watch(tab, (next) => {
     <div class="tabs">
       <section class="tab" :class="{ active: tab === 'dash' }"><Dashboard /></section>
       <section class="tab" :class="{ active: tab === 'road' }">
-        <RoadMap @open="(id) => (openCategoryId = id)" @exam="(node) => (examNode = node)" />
+        <RoadMap
+          :active="tab === 'road'"
+          @open="(id) => (openCategoryId = id)"
+          @exam="(node) => (examNode = node)"
+        />
       </section>
       <section class="tab" :class="{ active: tab === 'profile' }">
         <div class="scroll"><Profile /></div>

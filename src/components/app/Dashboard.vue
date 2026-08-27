@@ -100,6 +100,12 @@ const goalPercent = computed(() => {
       </div>
     </div>
 
+    <!-- Where this pace leads — AS-01's blue strip -->
+    <div v-if="data.projection_90d > data.words_learned" class="forecast">
+      <span>📈</span>
+      <b>Shu surʼatda 3 oyda ≈ {{ data.projection_90d }} soʼz yodlaysiz</b>
+    </div>
+
     <!-- Duels -->
     <div class="panel">
       <div class="panel-head">
@@ -135,6 +141,18 @@ const goalPercent = computed(() => {
 </template>
 
 <style scoped>
+.forecast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--blue-soft);
+  border-radius: 13px;
+  padding: 10px 13px;
+}
+
+.forecast b { font-size: 11.5px; font-weight: 700; color: var(--blue); line-height: 1.4; }
+.forecast span { font-size: 17px; line-height: 1; }
+
 .tappable {
   cursor: pointer;
 }

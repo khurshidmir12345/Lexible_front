@@ -6,20 +6,34 @@ import { telegram } from '../../lib/telegram'
 
 const emit = defineEmits(['close', 'joined'])
 
-/** `choose` → `code`; the second personal path is Premium-only for now. */
+/** `choose` → `code` → (`pick` when the ID covers several classes). */
 const step = ref('choose')
 const code = ref('')
 const joining = ref(false)
 const outcome = ref(null)
+const classes = ref(null)
 
-async function submit() {
+/**
+ * The teacher hands out one of two things and the student cannot be expected
+ * to know which: a group code off the board ("5A-KITOB") or the teacher's own
+ * ID from their profile ("TCHR-2381"). Both are accepted here.
+ */
+async function submit(groupId = null) {
   const value = code.value.trim().toUpperCase()
   if (value.length < 3) return
 
   joining.value = true
 
   try {
-    outcome.value = await api.joinGroup(value)
+    const result = await api.joinGroup(value, groupId)
+
+    if (result.status === 'choose') {
+      classes.value = result
+      step.value = 'pick'
+      return
+    }
+
+    outcome.value = result
     telegram.notify('success')
     emit('joined')
   } catch (error) {
@@ -52,7 +66,8 @@ function invite() {
           <h2>Soʼrov yuborildi</h2>
           <p>
             <b>{{ outcome.group.title }}</b> — {{ outcome.group.teacher }}.
-            Ustoz tasdiqlagach, bosqichlar yoʼlingizda paydo boʼladi.
+            Ustoz tasdiqlagach, bosqichlar yoʼlingizda paydo boʼladi va
+            bildirishnoma keladi.
           </p>
         </div>
         <button class="btn btn-primary" @click="$emit('close')">Tushunarli</button>
@@ -61,7 +76,7 @@ function invite() {
       <!-- Entering the code -->
       <template v-else-if="step === 'code'">
         <h2>Ustoz kodi</h2>
-        <p>Ustozingiz bergan guruh kodini kiriting.</p>
+        <p>Guruh kodi (<b>5A-KITOB</b>) yoki ustoz ID (<b>TCHR-2381</b>) — ikkalasi ham boʼladi.</p>
 
         <input
           v-model="code"
@@ -69,15 +84,39 @@ function invite() {
           placeholder="5A-KITOB"
           autocapitalize="characters"
           autocomplete="off"
-          @keyup.enter="submit"
+          @keyup.enter="submit()"
         />
 
         <div class="actions">
           <button class="btn btn-soft" @click="step = 'choose'">Orqaga</button>
-          <button class="btn btn-primary" :disabled="code.trim().length < 3 || joining" @click="submit">
+          <button class="btn btn-primary" :disabled="code.trim().length < 3 || joining" @click="submit()">
             {{ joining ? 'Yuborilmoqda...' : 'Qoʼshilish' }}
           </button>
         </div>
+      </template>
+
+      <!-- One teacher ID, several classes: the student says which. -->
+      <template v-else-if="step === 'pick'">
+        <h2>Qaysi guruh?</h2>
+        <p>{{ classes.teacher.name }} — {{ classes.groups.length }} ta guruh yuritadi.</p>
+
+        <div class="options">
+          <button
+            v-for="group in classes.groups"
+            :key="group.id"
+            class="option"
+            :disabled="joining"
+            @click="submit(group.id)"
+          >
+            <span class="option-emoji">{{ group.badge }}</span>
+            <span class="option-text">
+              <b>{{ group.title }}</b>
+              <i>{{ group.subtitle || `${group.members} oʼquvchi` }}</i>
+            </span>
+          </button>
+        </div>
+
+        <button class="btn btn-soft" @click="step = 'code'">Orqaga</button>
       </template>
 
       <!-- Choosing how to add a path -->

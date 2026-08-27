@@ -9,6 +9,7 @@ const state = reactive({
   user: null,
   road: [],
   paths: [],
+  groups: [],
   activePath: 'personal',
   dashboard: null,
 
@@ -29,6 +30,7 @@ export const store = {
 
       if (user.onboarded) {
         await this.refreshRoad()
+        await this.refreshGroups()
       }
     } catch (error) {
       state.error = error.message
@@ -42,6 +44,18 @@ export const store = {
     const { user } = await api.me()
     state.user = user
     this.setDark(user.dark_mode)
+  },
+
+  /**
+   * Class memberships, including the ones still waiting on a teacher — a
+   * request the student cannot see anywhere reads as if nothing happened.
+   */
+  async refreshGroups() {
+    try {
+      state.groups = (await api.myGroups()).groups
+    } catch {
+      state.groups = []
+    }
   },
 
   async refreshRoad() {
@@ -64,9 +78,13 @@ export const store = {
   },
 
   async completeOnboarding(answers) {
-    const { user } = await api.onboard(answers)
-    state.user = user
+    const result = await api.onboard(answers)
+    state.user = result.user
     await this.refreshRoad()
+    await this.refreshGroups()
+
+    // Carries `teacher_problem` when the ID they typed did not resolve.
+    return result
   },
 
   async setRole(role) {
