@@ -246,8 +246,10 @@ async function pickMatch(side, index) {
     if (matchDone.value.size === matchLeft.value.length * 2) {
       const res = await send(matchResults.value)
       if (res) {
-        feedback.value = { ...res, correct: true }
-        telegram.notify('success')
+        const right = matchResults.value.filter((r) => r.correct).length
+        const total = matchResults.value.length
+        feedback.value = { ...res, correct: right === total, match: { right, total } }
+        telegram.notify(right === total ? 'success' : 'error')
       }
     }
     return
@@ -265,7 +267,10 @@ const isPicked = (side, index) => matchPick.value?.id === `${side}${index}`
 const isDone = (side, index) => matchDone.value.has(`${side}${index}`)
 
 /* lifecycle */
-const continueAfter = () => advance(feedback.value && !feedback.value.correct)
+// A matching round is never replayed — every pair was already answered and
+// recorded once; only single-word questions earn their one repeat.
+const continueAfter = () =>
+  advance(feedback.value && !feedback.value.correct && current.value?.type !== 'match')
 
 async function finish() {
   stopSpeech()
@@ -553,9 +558,15 @@ onBeforeUnmount(stopSpeech)
             </svg>
           </span>
           <div>
-            <div class="sheet-title">{{ feedback.correct ? 'Toʼgʼri javob!' : 'Notoʼgʼri javob' }}</div>
+            <div class="sheet-title">
+              <template v-if="feedback.match">Juftlash yakunlandi</template>
+              <template v-else>{{ feedback.correct ? 'Toʼgʼri javob!' : 'Notoʼgʼri javob' }}</template>
+            </div>
             <div class="sheet-sub">
-              <template v-if="feedback.correct">
+              <template v-if="feedback.match">
+                {{ feedback.match.right }} / {{ feedback.match.total }} juftlik toʼgʼri topildi
+              </template>
+              <template v-else-if="feedback.correct">
                 {{ feedback.word?.en }} — {{ feedback.word?.translation }} · +1 tanga
               </template>
               <template v-else>
@@ -564,7 +575,7 @@ onBeforeUnmount(stopSpeech)
             </div>
           </div>
         </div>
-        <p v-if="!feedback.correct && current && !retried.has(current.id)" class="sheet-note">
+        <p v-if="!feedback.correct && !feedback.match && current && !retried.has(current.id)" class="sheet-note">
           Bu savol yana bir marta soʼraladi
         </p>
         <button class="btn" :class="feedback.correct ? 'btn-primary' : 'btn-dark'" @click="continueAfter">
