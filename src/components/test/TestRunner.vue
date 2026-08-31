@@ -88,7 +88,21 @@ function loadStage() {
   position.value = 0
   resetQuestion()
   if (stage.type === 'match') setupMatch()
-  if (stage.type === 'spell') nextTick(() => spellInput.value?.focus())
+  if (stage.type === 'spell') focusSpell()
+}
+
+/**
+ * The hidden input is uncontrolled, so its value survives resetQuestion() —
+ * without clearing it here, the first key on the next word would paste the
+ * previous answer back into the letter boxes.
+ */
+function focusSpell() {
+  nextTick(() => {
+    const el = spellInput.value
+    if (!el) return
+    el.value = ''
+    el.focus()
+  })
 }
 
 function resetQuestion() {
@@ -111,7 +125,7 @@ function advance(requeue = false) {
   }
 
   if (current.value?.type === 'match') setupMatch()
-  if (current.value?.type === 'spell') nextTick(() => spellInput.value?.focus())
+  if (current.value?.type === 'spell') focusSpell()
 }
 
 async function send(answer) {
@@ -166,7 +180,9 @@ const imageState = (option) => {
 const target = computed(() => current.value?.length ?? 0)
 
 function onSpellInput(event) {
-  typed.value = event.target.value.toLowerCase().replace(/[^a-z]/g, '').slice(0, target.value)
+  // Apostrophes, hyphens and spaces are letters of the answer too —
+  // "ice cream" and "don't" must be typeable.
+  typed.value = event.target.value.toLowerCase().replace(/[^a-z' -]/g, '').slice(0, target.value)
   event.target.value = typed.value
 }
 
@@ -181,9 +197,12 @@ async function checkSpell() {
   telegram.notify(res.correct ? 'success' : 'error')
 }
 
+// After checking, every box is graded on its own letter — "hella" for
+// "hello" shows four green boxes and one red one, so the player sees
+// exactly where the mistake was. (The style classes are t-ok/t-bad.)
 const slotState = (index) => {
   if (!feedback.value) return index === typed.value.length ? 'cur' : ''
-  return typed.value[index] === feedback.value.answer?.[index]?.toLowerCase() ? 'ok' : 'bad'
+  return typed.value[index] === feedback.value.answer?.[index]?.toLowerCase() ? 't-ok' : 't-bad'
 }
 
 /* matching */
@@ -797,11 +816,13 @@ onBeforeUnmount(stopSpeech)
 .t-slot.t-ok {
   border-color: var(--green);
   color: var(--green-dark);
+  background: var(--wash-3);
 }
 
 .t-slot.t-bad {
   border-color: var(--red);
   color: var(--red-dark);
+  background: var(--red-soft);
 }
 
 .ghost-input {

@@ -9,6 +9,8 @@ const props = defineProps({
   title: String,
   subtitle: String,
   mastery: { type: Object, default: () => ({}) },
+  /** Per-type verdicts: `correct`, `wrong`, or null for a type never played. */
+  states: { type: Object, default: null },
   /** `flags` marks each exercise pass/fail, `bars` shows how far along it is. */
   mode: { type: String, default: 'bars' },
 })
@@ -33,6 +35,11 @@ const rows = computed(() =>
     label: label.replace('{lang}', languageShort(store.state.user?.native_lang)),
     icon: ExerciseIcon[key],
     value: props.mastery[key] ?? 0,
+    // The last answer decides; without the states object (older payloads)
+    // the stored score stands in for it.
+    state: props.states
+      ? props.states[key] ?? 'none'
+      : (props.mastery[key] ?? 0) >= learnedAt ? 'correct' : 'wrong',
   })),
 )
 
@@ -56,14 +63,20 @@ const colourFor = (value) =>
           <span v-if="mode === 'bars'" class="m-pct" :style="{ color: colourFor(row.value) }">
             {{ row.value }}%
           </span>
-          <span v-else class="m-flag" :class="m-row.value >= learnedAt ? 'yes' : 'no'">
-            <svg v-if="row.value >= learnedAt" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 13l5 5L20 7" />
-            </svg>
-            <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </span>
+          <template v-else>
+            <span v-if="row.state === 'none'" class="m-skip">oʼynalmagan</span>
+            <span class="m-flag" :class="row.state">
+              <svg v-if="row.state === 'correct'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 13l5 5L20 7" />
+              </svg>
+              <svg v-else-if="row.state === 'wrong'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+              <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <path d="M5 12h14" />
+              </svg>
+            </span>
+          </template>
         </div>
       </div>
 
@@ -163,11 +176,22 @@ const colourFor = (value) =>
   flex-shrink: 0;
 }
 
-.m-flag.yes {
+.m-flag.correct {
   background: #22B15F;
 }
 
-.m-flag.no {
-  background: var(--line-4);
+.m-flag.wrong {
+  background: var(--red);
+}
+
+.m-flag.none {
+  background: var(--wash-2);
+  color: var(--faint);
+}
+
+.m-skip {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--faint);
 }
 </style>

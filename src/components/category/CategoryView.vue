@@ -111,8 +111,9 @@ function cancelNaming() {
 function openWordMastery(word) {
   masteryModal.value = {
     title: `${word.en} — ${word.overall}%`,
-    subtitle: 'Qaysi mashqlarni bilasiz',
+    subtitle: 'Oxirgi javob boʼyicha: topdingizmi yoki yoʼqmi',
     mastery: word.mastery,
+    states: word.answers,
     mode: 'flags',
   }
 }
@@ -327,6 +328,7 @@ onMounted(load)
       :title="masteryModal.title"
       :subtitle="masteryModal.subtitle"
       :mastery="masteryModal.mastery"
+      :states="masteryModal.states ?? null"
       :mode="masteryModal.mode"
       @close="masteryModal = null"
     />
