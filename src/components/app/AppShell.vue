@@ -31,15 +31,15 @@ const TABS = [
 
 const user = computed(() => store.state.user)
 
+// The road tab hands its own path switcher to the top bar instead of a
+// title, so the map gets the row back — hence no `road` entry here.
 const TITLES = {
   dash: () => `Salom, ${(user.value?.name ?? '').split(' ')[0]}`,
-  road: () => 'Yoʼl',
   profile: () => 'Profil',
 }
 
 const SUBTITLES = {
   dash: () => `Bugun rejada — ${user.value?.daily_goal ?? 0} ta soʼz`,
-  road: () => 'Bosqichma-bosqich yodlang',
   profile: () => user.value?.username ? '@' + user.value.username : 'Telegram hisobi',
 }
 
@@ -117,10 +117,14 @@ watch(tab, (next) => {
 <template>
   <div class="view active">
     <header class="v-topbar">
-      <div>
+      <div v-if="tab !== 'road'">
         <div class="greeting">{{ TITLES[tab]() }}</div>
         <div class="v-sub">{{ SUBTITLES[tab]() }}</div>
       </div>
+
+      <!-- RoadMap teleports its path switcher in here while the map is open. -->
+      <div id="road-topbar-slot" class="topbar-slot"></div>
+
       <button class="icon-btn" aria-label="Bildirishnomalar" @click="showingNotifications = true">
         <span v-html="bellIcon"></span>
         <span v-if="unread" class="v-dot"></span>
@@ -185,3 +189,15 @@ watch(tab, (next) => {
     />
   </div>
 </template>
+
+<style scoped>
+.topbar-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Nothing teleported in — the bar goes back to title plus bell. */
+.topbar-slot:empty {
+  display: none;
+}
+</style>

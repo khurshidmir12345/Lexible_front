@@ -18,6 +18,10 @@ import { telegram } from '../../lib/telegram'
 
 const emit = defineEmits(['edit-stage', 'competition'])
 
+/** The shell tells us when this tab is on screen — the switcher rides in its
+ *  top bar, and must not show while another tab is open. */
+defineProps({ active: { type: Boolean, default: true } })
+
 const paths = ref([])
 const activeId = ref(null)
 const loading = ref(true)
@@ -145,25 +149,29 @@ defineExpose({ load })
 
 <template>
   <div class="paths">
-    <!-- Compact switcher: the active path, its neighbours, and a plus. -->
-    <div class="switcher">
-      <button
-        v-for="path in paths.slice(0, 3)"
-        :key="path.id"
-        class="t-chip"
-        :class="{ on: activeId === path.id }"
-        @click="activeId === path.id ? (switching = true) : pick(path.id)"
-      >
-        {{ path.title }}
-        <span v-if="activeId === path.id" class="caret" v-html="TeacherIcon.chevron"></span>
-      </button>
-      <button v-if="paths.length > 3" class="t-chip" @click="switching = true">
-        +{{ paths.length - 3 }}
-      </button>
-      <button class="t-chip add" aria-label="Yangi yoʼl" @click="startCreate">
-        <span v-html="TeacherIcon.plus"></span>
-      </button>
-    </div>
+    <!-- Compact switcher: the active path, its neighbours, and a plus. It sits
+         in the shell's top bar in place of the title, so the map keeps the row
+         and one screenful shows more of the road. -->
+    <Teleport v-if="active" to="#paths-topbar-slot">
+      <div class="switcher">
+        <button
+          v-for="path in paths.slice(0, 3)"
+          :key="path.id"
+          class="t-chip"
+          :class="{ on: activeId === path.id }"
+          @click="activeId === path.id ? (switching = true) : pick(path.id)"
+        >
+          {{ path.title }}
+          <span v-if="activeId === path.id" class="caret" v-html="TeacherIcon.chevron"></span>
+        </button>
+        <button v-if="paths.length > 3" class="t-chip" @click="switching = true">
+          +{{ paths.length - 3 }}
+        </button>
+        <button class="t-chip add" aria-label="Yangi yoʼl" @click="startCreate">
+          <span v-html="TeacherIcon.plus"></span>
+        </button>
+      </div>
+    </Teleport>
 
     <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
@@ -318,16 +326,14 @@ defineExpose({ load })
   min-height: 0;
 }
 
+/* Lives in the top bar, so it scrolls sideways rather than owning a row. */
 .switcher {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 22px 12px;
-  background: var(--card);
-  border-bottom: 1px solid var(--wash);
+  padding: 2px 0;
   overflow-x: auto;
   scrollbar-width: none;
-  flex: none;
 }
 
 .switcher::-webkit-scrollbar { display: none; }

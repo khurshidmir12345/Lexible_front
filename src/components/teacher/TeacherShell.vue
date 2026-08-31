@@ -47,9 +47,10 @@ const TABS = [
 const user = computed(() => store.state.user)
 const firstName = computed(() => (user.value?.name ?? '').split(' ')[0])
 
+// The paths tab hands its own switcher to the top bar instead of a title, so
+// the map gets that row back — hence no `paths` entry here.
 const TITLES = {
   dash: () => `Salom, ${firstName.value}`,
-  paths: () => 'Yoʼllarim',
   groups: () => 'Guruhlar',
   profile: () => 'Profil',
 }
@@ -59,7 +60,6 @@ const SUBTITLES = {
     activeToday.value === null
       ? 'Ustoz kabineti'
       : `Bugun ${activeToday.value} oʼquvchi faol`,
-  paths: () => 'Darslar ketma-ketligi',
   groups: () => 'Sinflaringiz',
   profile: () => (user.value?.username ? '@' + user.value.username : 'Telegram hisobi'),
 }
@@ -114,10 +114,14 @@ watch(tab, (next) => {
 <template>
   <div class="view active">
     <header class="v-topbar">
-      <div class="head-text">
+      <div v-if="tab !== 'paths'" class="head-text">
         <div class="greeting">{{ TITLES[tab]() }}</div>
         <div class="v-sub">{{ SUBTITLES[tab]() }}</div>
       </div>
+
+      <!-- TeacherPaths teleports its path switcher in here while the map is open. -->
+      <div id="paths-topbar-slot" class="topbar-slot"></div>
+
       <div class="head-actions">
         <span class="role-chip">USTOZ</span>
         <button class="icon-btn" aria-label="Bildirishnomalar" @click="showNotifications = true">
@@ -141,6 +145,7 @@ watch(tab, (next) => {
       <section class="tab" :class="{ active: tab === 'paths' }">
         <TeacherPaths
           ref="pathsRef"
+          :active="tab === 'paths'"
           @edit-stage="(id) => (openStageId = id)"
           @competition="(c) => (lobby = { id: c.id, groupId: null, stageId: null })"
         />
@@ -203,6 +208,11 @@ watch(tab, (next) => {
 
 <style scoped>
 .head-text { min-width: 0; }
+
+.topbar-slot { flex: 1; min-width: 0; }
+
+/* Nothing teleported in — the bar goes back to title plus actions. */
+.topbar-slot:empty { display: none; }
 
 .head-actions { display: flex; align-items: center; gap: 9px; flex: none; }
 

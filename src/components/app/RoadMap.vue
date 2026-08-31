@@ -159,27 +159,31 @@ watch(activePath, focusCurrent)
 
 <template>
   <div class="road">
-    <!-- The player's own path, plus one per group they belong to. -->
-    <div class="path-tabs">
-      <button
-        v-for="path in paths"
-        :key="path.id"
-        class="path-tab"
-        :class="{ on: activePath === path.id, group: path.kind === 'group' }"
-        @click="store.selectPath(path.id)"
-      >
-        <svg v-if="path.kind === 'group'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
-        </svg>
-        {{ path.title }}
-      </button>
+    <!-- The player's own path, plus one per group they belong to. It rides in
+         the shell's top bar rather than above the map, so the map keeps the
+         row: one screenful shows more of the road. -->
+    <Teleport v-if="active" to="#road-topbar-slot">
+      <div class="path-tabs">
+        <button
+          v-for="path in paths"
+          :key="path.id"
+          class="path-tab"
+          :class="{ on: activePath === path.id, group: path.kind === 'group' }"
+          @click="store.selectPath(path.id)"
+        >
+          <svg v-if="path.kind === 'group'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
+          </svg>
+          {{ path.title }}
+        </button>
 
-      <button class="path-add" @click="adding = true">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#66736B" stroke-width="2.2" stroke-linecap="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      </button>
-    </div>
+        <button class="path-add" @click="adding = true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#66736B" stroke-width="2.2" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      </div>
+    </Teleport>
 
     <!-- A join request the teacher has not answered yet -->
     <div v-for="group in pendingGroups" :key="group.id" class="waiting">
@@ -320,15 +324,17 @@ watch(activePath, focusCurrent)
   position: relative;
 }
 
+/* Lives in the top bar, so it scrolls sideways instead of wrapping. */
 .path-tabs {
   display: flex;
   gap: 7px;
   align-items: center;
-  padding: 10px 22px 12px;
-  background: var(--card);
-  border-bottom: 1px solid var(--wash);
-  flex: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
 }
+
+.path-tabs::-webkit-scrollbar { display: none; }
 
 .path-tab {
   display: flex;
@@ -339,6 +345,7 @@ watch(activePath, focusCurrent)
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+  flex: none;
 }
 
 .path-tab {
@@ -366,7 +373,7 @@ watch(activePath, focusCurrent)
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 22px 10px;
+  margin: 10px 22px;
   padding: 11px 14px;
   border: 1px solid #F0E3C2;
   background: #FFFBF0;
@@ -409,7 +416,7 @@ watch(activePath, focusCurrent)
   display: flex;
   align-items: center;
   gap: 11px;
-  margin: 0 22px 10px;
+  margin: 10px 22px;
   padding: 11px 14px;
   background: var(--gold-soft);
   border: 1px solid var(--gold-line);
