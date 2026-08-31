@@ -20,7 +20,8 @@ const saving = ref(false)
 const failure = ref(null)
 
 const answers = ref({
-  native_lang: store.state.user?.native_lang ?? null,
+  // UZ is picked from the start — the player only taps through if it's right.
+  native_lang: store.state.user?.native_lang ?? 'uz',
   study_days: [],
   reminder_at: null,
   cefr_level: null,
@@ -159,7 +160,7 @@ async function finish() {
       <div class="ob-grow"></div>
       <div class="done-mark">🎉</div>
       <h1 class="ob-title" style="text-align: center">Tayyor, {{ firstName }}!</h1>
-      <p class="ob-sub" style="text-align: center">Birinchi kategoriyani yarating va boshlang.</p>
+      <p class="ob-sub" style="text-align: center">Birinchi bosqichingizni yarating va boshlang.</p>
       <div class="ob-summary">
         <div v-for="[label, value] in summary" :key="label" class="ob-summary-row">
           <span>{{ label }}</span><b>{{ value }}</b>

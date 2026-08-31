@@ -73,10 +73,6 @@ async function load() {
     words.value = data.words
     masteryByType.value = data.mastery_by_type
 
-    if (data.auto_filled > 0) {
-      store.toast(`✨ ${data.auto_filled} ta yangi soʼz tayyorlandi`)
-    }
-
     if (!category.value.title && category.value.editable !== false) {
       titleDraft.value = ''
       naming.value = true
@@ -98,6 +94,10 @@ async function saveTitle() {
     category.value.title = title
     store.patchNode(props.categoryId, { title })
     naming.value = false
+
+    // A freshly named stage has no vocabulary yet — go straight to the
+    // dictionary search so the player picks their own words.
+    if (words.value.length === 0) addingWords.value = true
   } catch (error) {
     store.toast(error.message)
   }
@@ -277,7 +277,7 @@ onMounted(load)
       </div>
     </div>
 
-    <Modal :open="naming" title="Kategoriyaga nom bering" text="Bu bosqichga nom yozing.">
+    <Modal :open="naming" title="Bosqichga nom bering" text="Bu bosqichga nom yozing.">
       <input v-model="titleDraft" class="modal-input" placeholder="Masalan: Taomlar" autocomplete="off" />
       <template #actions>
         <button class="btn btn-soft" @click="cancelNaming">Bekor</button>

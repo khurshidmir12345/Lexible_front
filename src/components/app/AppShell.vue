@@ -14,7 +14,8 @@ import { NavIcon, bellIcon } from '../../lib/icons2'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
-const tab = ref('dash')
+// The map is the home screen — the app always opens on the road.
+const tab = ref('road')
 const openCategoryId = ref(null)
 const examNode = ref(null)
 const examRun = ref(null)
