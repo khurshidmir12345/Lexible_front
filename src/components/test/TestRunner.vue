@@ -35,6 +35,10 @@ const stageIndex = ref(0)
 const queue = ref([])
 const position = ref(0)
 
+// Question ids already granted their one repeat. A missed word comes back
+// exactly once — the second attempt is final, right or wrong.
+const retried = new Set()
+
 const selected = ref(null)
 const typed = ref('')
 const flipped = ref(false)
@@ -114,7 +118,10 @@ function resetQuestion() {
 }
 
 function advance(requeue = false) {
-  if (requeue && current.value) queue.value.push(current.value)
+  if (requeue && current.value && !retried.has(current.value.id)) {
+    retried.add(current.value.id)
+    queue.value.push(current.value)
+  }
 
   position.value += 1
   resetQuestion()
@@ -557,7 +564,9 @@ onBeforeUnmount(stopSpeech)
             </div>
           </div>
         </div>
-        <p v-if="!feedback.correct" class="sheet-note">Bu savol test oxirida yana soʼraladi</p>
+        <p v-if="!feedback.correct && current && !retried.has(current.id)" class="sheet-note">
+          Bu savol yana bir marta soʼraladi
+        </p>
         <button class="btn" :class="feedback.correct ? 'btn-primary' : 'btn-dark'" @click="continueAfter">
           Davom etish
         </button>
