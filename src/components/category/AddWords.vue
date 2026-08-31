@@ -31,26 +31,52 @@ async function search() {
   }
 }
 
+// Picking a word empties the field for the next one without re-searching, so
+// the list stays put and sibling words ("name", "named"…) are still a tap away.
+let skipSearch = false
+
 // A miss triggers a dictionary API call server-side, so let typing settle.
 watch(query, () => {
   clearTimeout(debounce)
+  if (skipSearch) {
+    skipSearch = false
+    return
+  }
   debounce = setTimeout(search, 350)
 })
 
 async function toggle(word) {
   telegram.haptic()
-  try {
-    if (selected.value.has(word.id)) {
-      await api.removeWord(props.categoryId, word.id)
-      selected.value.delete(word.id)
-    } else {
-      await api.addWord(props.categoryId, word.id)
-      selected.value.add(word.id)
+  const adding = !selected.value.has(word.id)
+
+  // Optimistic: the tick flips at once and the field is ready for the next
+  // word — no waiting on the network, no retyping over a stale filter. The
+  // focus call runs inside the tap gesture, which keeps the keyboard open.
+  if (adding) {
+    selected.value.add(word.id)
+    if (query.value) {
+      skipSearch = true
+      query.value = ''
     }
-    selected.value = new Set(selected.value)
+    inputEl.value?.focus()
+  } else {
+    selected.value.delete(word.id)
+  }
+  selected.value = new Set(selected.value)
+
+  try {
+    if (adding) await api.addWord(props.categoryId, word.id)
+    else await api.removeWord(props.categoryId, word.id)
   } catch (error) {
+    adding ? selected.value.delete(word.id) : selected.value.add(word.id)
+    selected.value = new Set(selected.value)
     store.toast(error.message)
   }
+}
+
+function clearQuery() {
+  query.value = ''
+  inputEl.value?.focus()
 }
 
 const initial = (word) => word.en.charAt(0).toLowerCase()
@@ -69,7 +95,12 @@ onMounted(() => {
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </button>
-      <input ref="inputEl" v-model="query" placeholder="Inglizcha soʼz qidiring" />
+      <input ref="inputEl" v-model="query" placeholder="Inglizcha soʼz qidiring" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <button v-if="query" class="a-clear" aria-label="Tozalash" @click="clearQuery">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
     </header>
 
     <div class="add-list">
@@ -80,6 +111,7 @@ onMounted(() => {
         :key="word.id"
         class="sug"
         :class="{ picked: selected.has(word.id) }"
+        @mousedown.prevent
         @click="toggle(word)"
       >
         <span class="tile-letter">{{ initial(word) }}</span>
@@ -146,6 +178,19 @@ onMounted(() => {
 .add-head input::placeholder {
   color: var(--faint);
   font-weight: 600;
+}
+
+.a-clear {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: var(--wash-2);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
 }
 
 .add-list {
