@@ -7,7 +7,8 @@ import WordDetail from './WordDetail.vue'
 import Modal from '../ui/Modal.vue'
 import TestRunner from '../test/TestRunner.vue'
 import DuelFlow from '../duel/DuelFlow.vue'
-import { backIcon } from '../../lib/icons2'
+import { backIcon, ExerciseIcon } from '../../lib/icons2'
+import { languageShort } from '../../lib/languages'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -36,14 +37,24 @@ const duelIntent = ref(false)
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
 
-const TYPE_LABELS = [
-  ['card', 'Karta'],
-  ['uz2en', 'U→E'],
-  ['en2uz', 'E→U'],
-  ['spell', 'Imlo'],
-  ['image', 'Rasm'],
-  ['match', 'Juft'],
-]
+/** One row per exercise type: icon, name, meter and the exact percent. */
+const typeRows = computed(() => {
+  const lang = languageShort(store.state.user?.native_lang)
+
+  return [
+    ['card', 'Karta'],
+    ['uz2en', `${lang} → ing`],
+    ['en2uz', `ing → ${lang}`],
+    ['spell', 'Imlo'],
+    ['image', 'Rasm'],
+    ['match', 'Juftlash'],
+  ].map(([key, label]) => ({
+    key,
+    label,
+    icon: ExerciseIcon[key],
+    value: masteryByType.value[key] ?? 0,
+  }))
+})
 
 const overall = computed(() =>
   words.value.length
@@ -53,15 +64,12 @@ const overall = computed(() =>
 
 const weakWords = computed(() => words.value.filter((w) => w.overall < learnedAt))
 
-/** Bar colour tracks how solid that exercise is, matching the artboard. */
-function barColour(value) {
+/** Meter colour is the app's usual verdict scale: green / amber / red. */
+function meterColour(value) {
   if (value >= learnedAt) return 'var(--green)'
-  if (value >= midAt) return '#8FD4AC'
-  if (value > 0) return 'var(--green-bar)'
-  return 'var(--line-3)'
+  if (value >= midAt) return '#DFA32E'
+  return 'var(--red)'
 }
-
-const barHeight = (value) => `${Math.max((value / 100) * 52, 4)}px`
 
 const pillClass = (value) => (value >= learnedAt ? 'high' : value >= midAt ? 'mid' : 'low')
 
@@ -115,15 +123,6 @@ function openWordMastery(word) {
     mastery: word.mastery,
     states: word.answers,
     mode: 'flags',
-  }
-}
-
-function openCategoryMastery() {
-  masteryModal.value = {
-    title: `${category.value.title} — ${overall.value}%`,
-    subtitle: 'Qaysi mashqlar zaif',
-    mastery: masteryByType.value,
-    mode: 'bars',
   }
 }
 
@@ -239,17 +238,17 @@ onMounted(load)
           <button class="vs" @click="() => { duelIntent = true; picker = true }">VS</button>
         </div>
 
-        <div class="panel" @click="openCategoryMastery">
+        <div class="panel">
           <div class="panel-title">Test turlari boʼyicha</div>
-          <div class="bars">
-            <div
-              v-for="[key] in TYPE_LABELS"
-              :key="key"
-              :style="{ height: barHeight(masteryByType[key] ?? 0), background: barColour(masteryByType[key] ?? 0) }"
-            ></div>
-          </div>
-          <div class="bar-labels">
-            <span v-for="[key, label] in TYPE_LABELS" :key="key">{{ label }}</span>
+          <div class="type-rows">
+            <div v-for="row in typeRows" :key="row.key" class="type-row">
+              <span class="type-ic" :style="{ background: row.icon.bg, color: row.icon.color }" v-html="row.icon.svg"></span>
+              <span class="type-label">{{ row.label }}</span>
+              <span class="type-meter">
+                <i v-if="row.value > 0" :style="{ width: row.value + '%', background: meterColour(row.value) }"></i>
+              </span>
+              <b class="type-pct v-num" :class="{ zero: row.value === 0 }">{{ row.value }}%</b>
+            </div>
           </div>
         </div>
 
@@ -440,29 +439,67 @@ onMounted(load)
   margin-bottom: 12px;
 }
 
-.bars {
+.type-rows {
   display: flex;
-  align-items: flex-end;
-  gap: 9px;
-  height: 52px;
+  flex-direction: column;
+  gap: 11px;
 }
 
-.bars > div {
-  flex: 1;
-  border-radius: 5px;
-}
-
-.bar-labels {
+.type-row {
   display: flex;
-  gap: 9px;
-  margin-top: 7px;
+  align-items: center;
+  gap: 10px;
 }
 
-.bar-labels span {
-  flex: 1;
-  text-align: center;
-  font-size: 9.5px;
+.type-ic {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.type-ic :deep(svg) {
+  width: 14px;
+  height: 14px;
+}
+
+.type-label {
+  width: 84px;
+  flex-shrink: 0;
+  font-size: 12px;
   font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-meter {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line-3);
+  overflow: hidden;
+}
+
+.type-meter > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width .3s;
+}
+
+.type-pct {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.type-pct.zero {
   color: var(--faint);
 }
 
