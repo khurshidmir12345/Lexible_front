@@ -7,8 +7,7 @@ import WordDetail from './WordDetail.vue'
 import Modal from '../ui/Modal.vue'
 import TestRunner from '../test/TestRunner.vue'
 import DuelFlow from '../duel/DuelFlow.vue'
-import { backIcon, ExerciseIcon } from '../../lib/icons2'
-import { languageShort } from '../../lib/languages'
+import { backIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -37,24 +36,21 @@ const duelIntent = ref(false)
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
 
-/** One row per exercise type: icon, name, meter and the exact percent. */
-const typeRows = computed(() => {
-  const lang = languageShort(store.state.user?.native_lang)
-
-  return [
+/** One column per exercise type; the exact percent sits above each bar. */
+const typeRows = computed(() =>
+  [
     ['card', 'Karta'],
-    ['uz2en', `${lang} → ing`],
-    ['en2uz', `ing → ${lang}`],
+    ['uz2en', 'U→E'],
+    ['en2uz', 'E→U'],
     ['spell', 'Imlo'],
     ['image', 'Rasm'],
-    ['match', 'Juftlash'],
+    ['match', 'Juft'],
   ].map(([key, label]) => ({
     key,
     label,
-    icon: ExerciseIcon[key],
     value: masteryByType.value[key] ?? 0,
-  }))
-})
+  })),
+)
 
 const overall = computed(() =>
   words.value.length
@@ -114,6 +110,15 @@ async function saveTitle() {
 function cancelNaming() {
   naming.value = false
   emit('close')
+}
+
+function openCategoryMastery() {
+  masteryModal.value = {
+    title: `${category.value.title} — ${overall.value}%`,
+    subtitle: 'Har bir test turi boʼyicha oʼzlashtirish',
+    mastery: masteryByType.value,
+    mode: 'bars',
+  }
 }
 
 function openWordMastery(word) {
@@ -238,16 +243,18 @@ onMounted(load)
           <button class="vs" @click="() => { duelIntent = true; picker = true }">VS</button>
         </div>
 
-        <div class="panel">
+        <div class="panel chart" @click="openCategoryMastery">
           <div class="panel-title">Test turlari boʼyicha</div>
-          <div class="type-rows">
-            <div v-for="row in typeRows" :key="row.key" class="type-row">
-              <span class="type-ic" :style="{ background: row.icon.bg, color: row.icon.color }" v-html="row.icon.svg"></span>
-              <span class="type-label">{{ row.label }}</span>
-              <span class="type-meter">
-                <i v-if="row.value > 0" :style="{ width: row.value + '%', background: meterColour(row.value) }"></i>
+          <div class="bars">
+            <div v-for="row in typeRows" :key="row.key" class="bar-col">
+              <b class="bar-val v-num" :class="{ zero: row.value === 0 }">{{ row.value }}%</b>
+              <span class="bar-track">
+                <i
+                  v-if="row.value > 0"
+                  :style="{ height: Math.max(row.value, 6) + '%', background: meterColour(row.value) }"
+                ></i>
               </span>
-              <b class="type-pct v-num" :class="{ zero: row.value === 0 }">{{ row.value }}%</b>
+              <span class="bar-cap">{{ row.label }}</span>
             </div>
           </div>
         </div>
@@ -439,67 +446,53 @@ onMounted(load)
   margin-bottom: 12px;
 }
 
-.type-rows {
+.panel.chart {
+  cursor: pointer;
+}
+
+.bars {
+  display: flex;
+  gap: 9px;
+}
+
+.bar-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 11px;
-}
-
-.type-row {
-  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
 }
 
-.type-ic {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.type-ic :deep(svg) {
-  width: 14px;
-  height: 14px;
-}
-
-.type-label {
-  width: 84px;
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.type-meter {
-  flex: 1;
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--line-3);
-  overflow: hidden;
-}
-
-.type-meter > i {
-  display: block;
-  height: 100%;
-  border-radius: var(--r-pill);
-  transition: width .3s;
-}
-
-.type-pct {
-  width: 40px;
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 12.5px;
+/* The number is the reading; the bar just makes it comparable at a glance. */
+.bar-val {
+  font-size: 10px;
   color: var(--ink);
 }
 
-.type-pct.zero {
+.bar-val.zero {
+  color: var(--faint);
+}
+
+.bar-track {
+  width: 100%;
+  height: 46px;
+  border-radius: 7px;
+  background: var(--wash-2);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bar-track > i {
+  display: block;
+  width: 100%;
+  border-radius: 7px 7px 0 0;
+  transition: height .3s;
+}
+
+.bar-cap {
+  font-size: 9.5px;
+  font-weight: 700;
   color: var(--faint);
 }
 
