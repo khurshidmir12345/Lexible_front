@@ -357,7 +357,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 20px 22px 14px;
+  padding: 10px 22px 9px;
   background: var(--card);
   border-bottom: 1px solid var(--wash);
   flex: none;

@@ -216,7 +216,9 @@ h3 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 20px 22px 14px;
+    /* Kept tight on purpose: the bar is fixed chrome on every screen, so the
+       padding is what the content below pays for. Icons keep their size. */
+    padding: 10px 22px 9px;
     background: var(--card);
     border-bottom: 1px solid var(--wash);
     flex: none;
@@ -412,7 +414,9 @@ h3 {
     display: flex;
     background: var(--card);
     border-top: 1px solid var(--wash);
-    padding: 10px 22px 22px;
+    /* The old 22px foot was there for the home indicator; ask the device for
+       the real inset instead of paying for it on every phone. */
+    padding: 6px 22px calc(8px + env(safe-area-inset-bottom));
     flex: none;
 }
 
@@ -423,7 +427,7 @@ h3 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     color: var(--faint);
     font-family: 'Manrope', system-ui, sans-serif;
     font-size: 10.5px;
@@ -448,7 +452,7 @@ h3 {
 .toast {
     position: absolute;
     left: 50%;
-    bottom: 96px;
+    bottom: 78px;
     transform: translate(-50%, 12px);
     background: var(--ink);
     color: #fff;

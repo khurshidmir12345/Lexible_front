@@ -155,5 +155,5 @@ async function confirm() {
 
 .role.on .text i { color: var(--green-dark); }
 
-.foot { padding: 22px 22px calc(30px + env(safe-area-inset-bottom)); flex: none; }
+.foot { padding: 14px 22px calc(14px + env(safe-area-inset-bottom)); flex: none; }
 </style>

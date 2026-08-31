@@ -109,7 +109,7 @@ onBeforeUnmount(stopPolling)
 
 .lobby-head {
   display: flex; align-items: center; gap: 13px;
-  padding: 20px 22px; flex: none;
+  padding: 10px 22px 9px; flex: none;
 }
 
 .lobby-x {

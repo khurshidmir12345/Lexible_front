@@ -22,6 +22,13 @@ const emit = defineEmits(['edit-stage', 'competition'])
  *  top bar, and must not show while another tab is open. */
 defineProps({ active: { type: Boolean, default: true } })
 
+/**
+ * Vue mounts a subtree before inserting it into the document, so a Teleport
+ * that resolves its target by selector finds nothing when this tab is the one
+ * the shell opens on. Waiting for `mounted` puts the lookup after the insert.
+ */
+const attached = ref(false)
+
 const paths = ref([])
 const activeId = ref(null)
 const loading = ref(true)
@@ -143,7 +150,11 @@ function summary(path) {
   return parts.join(' · ')
 }
 
-onMounted(load)
+onMounted(() => {
+  attached.value = true
+  load()
+})
+
 defineExpose({ load })
 </script>
 
@@ -152,21 +163,25 @@ defineExpose({ load })
     <!-- Compact switcher: the active path, its neighbours, and a plus. It sits
          in the shell's top bar in place of the title, so the map keeps the row
          and one screenful shows more of the road. -->
-    <Teleport v-if="active" to="#paths-topbar-slot">
+    <Teleport v-if="active && attached" to="#paths-topbar-slot">
       <div class="switcher">
-        <button
-          v-for="path in paths.slice(0, 3)"
-          :key="path.id"
-          class="t-chip"
-          :class="{ on: activeId === path.id }"
-          @click="activeId === path.id ? (switching = true) : pick(path.id)"
-        >
-          {{ path.title }}
-          <span v-if="activeId === path.id" class="caret" v-html="TeacherIcon.chevron"></span>
-        </button>
-        <button v-if="paths.length > 3" class="t-chip" @click="switching = true">
-          +{{ paths.length - 3 }}
-        </button>
+        <!-- Only the chips scroll: the "+" is pinned so a long path name can
+             never carry it off the edge of the bar. -->
+        <div class="switcher-scroll">
+          <button
+            v-for="path in paths.slice(0, 3)"
+            :key="path.id"
+            class="t-chip"
+            :class="{ on: activeId === path.id }"
+            @click="activeId === path.id ? (switching = true) : pick(path.id)"
+          >
+            <span class="chip-label">{{ path.title }}</span>
+            <span v-if="activeId === path.id" class="caret" v-html="TeacherIcon.chevron"></span>
+          </button>
+          <button v-if="paths.length > 3" class="t-chip" @click="switching = true">
+            +{{ paths.length - 3 }}
+          </button>
+        </div>
         <button class="t-chip add" aria-label="Yangi yoʼl" @click="startCreate">
           <span v-html="TeacherIcon.plus"></span>
         </button>
@@ -332,19 +347,40 @@ defineExpose({ load })
   align-items: center;
   gap: 7px;
   padding: 2px 0;
+  min-width: 0;
+}
+
+.switcher-scroll {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-.switcher::-webkit-scrollbar { display: none; }
+.switcher-scroll::-webkit-scrollbar { display: none; }
 
+/* This overrides the `display: grid` that centres the plus in `.t-chip.add`,
+   so the centring has to be restated here or the glyph sits off to one side. */
 .switcher .t-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  /* Long enough to read, short enough to leave room for a second path. */
+  max-width: 130px;
 }
 
-.caret { display: grid; place-items: center; transform: rotate(90deg) scale(.8); }
+.chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.caret { display: grid; place-items: center; transform: rotate(90deg) scale(.8); flex: none; }
 
 /* ------------------------------------------------------------------- map */
 
@@ -489,7 +525,7 @@ defineExpose({ load })
 .option.on { border: 1.5px solid var(--green); background: var(--wash-3); }
 
 .option-text { flex: 1; min-width: 0; }
-.option-text b { display: block; font-size: 14px; font-weight: 800; }
+.option-text b { display: block; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
 .option.on .option-text b { color: var(--green-dark); }
 .option-text i {
   display: block;
@@ -509,7 +545,10 @@ defineExpose({ load })
   font-weight: 800;
 }
 
-.option.dashed > span { display: grid; place-items: center; }
+/* «…» ni tahrirlash quotes the path name, so the row has to survive a long one. */
+.option.dashed b { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+
+.option.dashed > span { display: grid; place-items: center; flex: none; }
 
 .radio {
   width: 20px;

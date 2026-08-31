@@ -13,7 +13,8 @@
     display: flex;
     align-items: center;
     gap: 13px;
-    padding: 20px 22px 14px;
+    /* Matches .v-topbar — see the note there. */
+    padding: 10px 22px 9px;
     background: var(--card);
     border-bottom: 1px solid var(--wash);
     flex: none;
@@ -70,7 +71,7 @@
 }
 
 .t-foot {
-    padding: 14px 22px calc(22px + env(safe-area-inset-bottom));
+    padding: 10px 22px calc(10px + env(safe-area-inset-bottom));
     background: var(--card);
     border-top: 1px solid var(--wash);
     flex: none;

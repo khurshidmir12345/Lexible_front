@@ -557,7 +557,7 @@ onBeforeUnmount(stopSpeech)
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 20px 22px;
+  padding: 10px 22px 9px;
   flex: none;
 }
 
@@ -635,7 +635,7 @@ onBeforeUnmount(stopSpeech)
 }
 
 .runner-foot {
-  padding: 22px 22px 30px;
+  padding: 14px 22px calc(14px + env(safe-area-inset-bottom));
   flex: none;
 }
 
@@ -990,7 +990,7 @@ onBeforeUnmount(stopSpeech)
 /* duel scoreboard */
 
 .duel-bar {
-  padding: 20px 22px 0;
+  padding: 10px 22px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;

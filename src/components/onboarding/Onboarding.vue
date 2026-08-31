@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import treasureMap from '../../assets/treasure-map.webp'
 import { StepIcon, backIcon } from '../../lib/icons2'
 import { GOALS, LANGUAGES, LEVELS, TIMES, WEEKDAYS } from '../../lib/languages'
 import { store } from '../../lib/store'
@@ -127,18 +128,30 @@ async function finish() {
 <template>
   <div class="view active ob">
     <!-- WELCOME -->
-    <section v-if="screen === 'welcome'" class="ob-screen ob-center">
+    <section v-if="screen === 'welcome'" class="ob-screen ob-welcome">
       <div class="hello-cloud">
         <span>hello</span>
         <span class="alt">salom</span>
       </div>
       <div class="ob-wordmark">Lexible<b>.</b></div>
-      <h1 class="ob-title" style="text-align: center">Soʼzlarni oʼyin orqali yodlang</h1>
-      <p class="ob-sub" style="text-align: center">
+
+      <!-- The map is what the app actually is, so it gets the free space:
+           it grows on a tall phone and shrinks rather than pushing the
+           button off a short one. -->
+      <figure class="ob-art">
+        <span
+          class="ob-art-img"
+          role="img"
+          aria-label="Xazina xaritasi"
+          :style="{ backgroundImage: `url(${treasureMap})` }"
+        ></span>
+      </figure>
+
+      <h1 class="ob-title">Soʼzlarni oʼyin orqali yodlang</h1>
+      <p class="ob-sub">
         Har kuni bir necha yangi soʼz. Yoʼl xaritasi boʼylab koʼtarilib, lugʼatingizni mustahkamlang.
       </p>
-      <div class="ob-grow"></div>
-      <button class="btn btn-primary" @click="go('lang')">Boshlash</button>
+      <button class="btn btn-primary ob-start" @click="go('lang')">Boshlash</button>
     </section>
 
     <!-- DONE -->
@@ -246,7 +259,7 @@ async function finish() {
             <span class="badge">{{ level.code }}</span>
             <span class="pick-two">
               <b>{{ level.value }}</b>
-              <i>{{ level.ob-hint }}</i>
+              <i>{{ level.hint }}</i>
             </span>
             <span class="radio" :class="{ on: answers.cefr_level === level.code }"></span>
           </button>
@@ -330,8 +343,8 @@ async function finish() {
   background: var(--card);
 }
 
-.ob-screen.ob-center {
-  padding: 22px;
+.ob-welcome {
+  padding: 18px 22px calc(18px + env(safe-area-inset-bottom));
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -346,7 +359,7 @@ async function finish() {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 20px 22px 0;
+  padding: 12px 22px 0;
   flex: none;
 }
 
@@ -386,7 +399,7 @@ async function finish() {
 }
 
 .ob-hero {
-  padding: 26px 22px 0;
+  padding: 18px 22px 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -430,7 +443,7 @@ async function finish() {
 }
 
 .ob-foot {
-  padding: 12px 22px 22px;
+  padding: 10px 22px calc(12px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -773,7 +786,53 @@ async function finish() {
   font-weight: 600;
 }
 
-.ob-screen.ob-center .btn {
+/* Drawn as a background rather than an <img>: `contain` can never overflow its
+   box, so on a short phone the art gives way to the heading instead of
+   covering it. */
+.ob-art {
+  flex: 1 1 auto;
+  min-height: 110px;
+  width: 100%;
+  margin: 6px 0 14px;
+  display: grid;
+  position: relative;
+}
+
+/* The render was lit against a warm backdrop. A halo keeps that glow without
+   dragging the dark corners of the original onto a white screen. */
+.ob-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 80%;
+  aspect-ratio: 1;
+  border-radius: var(--r-pill);
+  background: radial-gradient(circle, var(--gold-soft) 0%, rgba(251, 243, 222, 0) 70%);
+}
+
+.ob-art-img {
+  position: relative;
+  align-self: stretch;
+  justify-self: center;
+  width: min(100%, 330px);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 16px 24px rgba(84, 63, 26, .18));
+}
+
+.app.dark .ob-art::before {
+  background: radial-gradient(circle, rgba(238, 198, 74, .12) 0%, rgba(238, 198, 74, 0) 70%);
+}
+
+.ob-welcome .ob-sub {
+  max-width: 330px;
+}
+
+.ob-start {
+  width: 100%;
   max-width: 340px;
+  margin-top: 20px;
 }
 </style>

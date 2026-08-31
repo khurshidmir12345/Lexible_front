@@ -26,6 +26,13 @@ const WIDTH = 390
 const adding = ref(false)
 const showingBoard = ref(false)
 
+/**
+ * Vue mounts a subtree before inserting it into the document, so a Teleport
+ * that resolves its target by selector finds nothing when this tab is the one
+ * the shell opens on. Waiting for `mounted` puts the lookup after the insert.
+ */
+const attached = ref(false)
+
 const paths = computed(() => store.state.paths)
 const activePath = computed(() => store.state.activePath)
 const currentPath = computed(() => paths.value.find((p) => p.id === activePath.value))
@@ -150,7 +157,10 @@ async function focusCurrent() {
   })
 }
 
-onMounted(focusCurrent)
+onMounted(() => {
+  attached.value = true
+  focusCurrent()
+})
 watch(() => store.state.road.length, focusCurrent)
 watch(() => props.active, (on) => { if (on) focusCurrent() })
 // Switching between the personal road and a class road re-centres too.
@@ -162,20 +172,24 @@ watch(activePath, focusCurrent)
     <!-- The player's own path, plus one per group they belong to. It rides in
          the shell's top bar rather than above the map, so the map keeps the
          row: one screenful shows more of the road. -->
-    <Teleport v-if="active" to="#road-topbar-slot">
+    <Teleport v-if="active && attached" to="#road-topbar-slot">
       <div class="path-tabs">
-        <button
-          v-for="path in paths"
-          :key="path.id"
-          class="path-tab"
-          :class="{ on: activePath === path.id, group: path.kind === 'group' }"
-          @click="store.selectPath(path.id)"
-        >
-          <svg v-if="path.kind === 'group'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
-          </svg>
-          {{ path.title }}
-        </button>
+        <!-- Only the tabs scroll: the "+" is pinned so a long class name can
+             never carry it off the edge of the bar. -->
+        <div class="path-scroll">
+          <button
+            v-for="path in paths"
+            :key="path.id"
+            class="path-tab"
+            :class="{ on: activePath === path.id, group: path.kind === 'group' }"
+            @click="store.selectPath(path.id)"
+          >
+            <svg v-if="path.kind === 'group'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
+            </svg>
+            <span class="tab-label">{{ path.title }}</span>
+          </button>
+        </div>
 
         <button class="path-add" @click="adding = true">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#66736B" stroke-width="2.2" stroke-linecap="round">
@@ -329,12 +343,21 @@ watch(activePath, focusCurrent)
   display: flex;
   gap: 7px;
   align-items: center;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding: 2px 0;
+  min-width: 0;
 }
 
-.path-tabs::-webkit-scrollbar { display: none; }
+.path-scroll {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.path-scroll::-webkit-scrollbar { display: none; }
 
 .path-tab {
   display: flex;
@@ -346,6 +369,16 @@ watch(activePath, focusCurrent)
   font-weight: 800;
   white-space: nowrap;
   flex: none;
+  /* Long enough to read, short enough to leave room for a second path. */
+  max-width: 130px;
+}
+
+.path-tab > svg { flex: none; }
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .path-tab {
