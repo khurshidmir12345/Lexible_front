@@ -6,8 +6,33 @@
  */
 const tg = window.Telegram?.WebApp ?? null
 
+const platform = tg?.platform ?? 'unknown'
+const onPhone = platform === 'android' || platform === 'android_x' || platform === 'ios'
+
+// Desktop and web clients — plus a plain wide browser window during development.
+const onDesktop = ['tdesktop', 'macos', 'weba', 'webk', 'web'].includes(platform)
+  || (!tg?.initData && window.matchMedia?.('(min-width: 760px) and (pointer: fine)').matches)
+
+/**
+ * Fullscreen leaves the page under the status bar and Telegram's own floating
+ * controls. The client reports both insets; they are mirrored into CSS
+ * variables the stylesheet pads with. Outside fullscreen both are zero, so
+ * the rules cost nothing.
+ */
+function syncInsets() {
+  const safe = tg?.safeAreaInset ?? {}
+  const content = tg?.contentSafeAreaInset ?? {}
+  const root = document.documentElement.style
+  root.setProperty('--lx-safe-top', `${(safe.top ?? 0) + (content.top ?? 0)}px`)
+  root.setProperty('--lx-safe-bottom', `${safe.bottom ?? 0}px`)
+}
+
 export const telegram = {
   available: Boolean(tg?.initData),
+
+  platform,
+  isPhone: onPhone,
+  isDesktop: onDesktop,
 
   init() {
     if (!tg) return
@@ -15,7 +40,33 @@ export const telegram = {
     tg.ready()
     tg.expand()
     tg.disableVerticalSwipes?.()      // stops the pull-to-close gesture eating swipes
+
+    tg.onEvent?.('fullscreenChanged', syncInsets)
+    tg.onEvent?.('safeAreaChanged', syncInsets)
+    tg.onEvent?.('contentSafeAreaChanged', syncInsets)
+
+    // expand() still leaves Telegram's header eating the top of the screen —
+    // most visibly on iOS. Bot API 8.0's fullscreen removes it on every
+    // phone; fullscreen would then rotate with the device, so the portrait
+    // layout locks itself. Desktop waits for the role — see fullscreen().
+    if (onPhone) {
+      this.fullscreen()
+      try { tg.lockOrientation?.() } catch { /* not fatal */ }
+    }
+
+    syncInsets()
     this.paint(false)
+  },
+
+  /**
+   * Called at init on phones, and by App.vue on desktop once the account
+   * turns out to be a teacher — the desk layout wants the whole monitor,
+   * while a student's phone-shaped column doesn't. Older clients fire
+   * fullscreenFailed and simply stay expanded.
+   */
+  fullscreen() {
+    if (!tg?.isVersionAtLeast?.('8.0') || tg.isFullscreen) return
+    try { tg.requestFullscreen?.() } catch { /* stays expanded */ }
   },
 
   /** Keeps Telegram's own chrome in step with the app's theme. */

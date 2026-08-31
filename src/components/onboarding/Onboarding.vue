@@ -344,7 +344,7 @@ async function finish() {
 }
 
 .ob-welcome {
-  padding: 18px 22px calc(18px + env(safe-area-inset-bottom));
+  padding: 18px 22px calc(18px + var(--lx-foot));
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -443,7 +443,7 @@ async function finish() {
 }
 
 .ob-foot {
-  padding: 10px 22px calc(12px + env(safe-area-inset-bottom));
+  padding: 10px 22px calc(12px + var(--lx-foot));
   display: flex;
   flex-direction: column;
   gap: 8px;

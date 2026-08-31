@@ -43,7 +43,7 @@ defineProps({
   width: 100%;
   background: var(--card);
   border-radius: 24px 24px 0 0;
-  padding: 12px 22px 28px;
+  padding: 12px 22px calc(28px + var(--lx-foot));
   transform: translateY(16px);
   transition: transform .22s;
   max-height: 88%;

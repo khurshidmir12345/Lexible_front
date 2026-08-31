@@ -1,0 +1,131 @@
+/*
+ * Desktop mode for the teacher side.
+ *
+ * `.desk` is put on `.app` by App.vue when a teacher opens the app in a
+ * desktop or web Telegram client. The phone frame disappears, the bottom nav
+ * turns into a left rail, and every content column is capped at 940px so the
+ * cards designed for a phone don't stretch across a monitor.
+ *
+ * Everything is guarded by width, not just by the class: if the client
+ * refused fullscreen and the mini-app window is still phone-sized, the phone
+ * layout is the right one anyway.
+ */
+
+@media (min-width: 760px) {
+
+    /* ------------------------------------------------------------- frame */
+
+    .app.desk {
+        max-width: none;
+        height: 100dvh;
+        max-height: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* ----------------------------------------------------- shell → rail */
+
+    .app.desk .t-shell.view.active {
+        display: grid;
+        grid-template-columns: 236px minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .app.desk .t-shell > .v-topbar,
+    .app.desk .t-shell > .tabs {
+        grid-column: 2;
+    }
+
+    .app.desk .t-shell > .bottom-nav {
+        grid-column: 1;
+        grid-row: 1 / -1;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 5px;
+        padding: 20px 14px;
+        border-top: none;
+        border-right: 1px solid var(--wash);
+    }
+
+    /* The rail earns a wordmark — the phone layout never had room for one. */
+    .app.desk .t-shell > .bottom-nav::before {
+        content: 'Lexible.';
+        font-family: 'Sora', system-ui, sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: -0.8px;
+        color: var(--ink);
+        padding: 2px 13px 16px;
+    }
+
+    .app.desk .t-shell > .bottom-nav button {
+        flex: none;
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 12px 13px;
+        border-radius: var(--r-md);
+        font-size: 13.5px;
+    }
+
+    .app.desk .t-shell > .bottom-nav button.on {
+        background: var(--green-soft);
+        color: var(--green-dark);
+    }
+
+    .app.desk .t-shell > .bottom-nav .marker {
+        display: none;
+    }
+
+    /* --------------------------------------------------- content column */
+
+    /* Chrome and content share one centered column, so headers line up with
+       the cards below them. Overlays reuse .t-head/.t-body and follow. */
+    .app.desk .v-topbar,
+    .app.desk .t-head,
+    .app.desk .t-foot {
+        padding-left: max(30px, calc((100% - 940px) / 2));
+        padding-right: max(30px, calc((100% - 940px) / 2));
+    }
+
+    .app.desk .v-topbar {
+        padding-top: 14px;
+        padding-bottom: 13px;
+    }
+
+    .app.desk .scroll,
+    .app.desk .t-body {
+        padding-top: 22px;
+        padding-bottom: 34px;
+        padding-left: max(30px, calc((100% - 940px) / 2));
+        padding-right: max(30px, calc((100% - 940px) / 2));
+    }
+
+    /* ------------------------------------------------- sheets → dialogs */
+
+    /* Bottom sheets read as phone furniture on a monitor; centered dialogs
+       don't. The same two-class pattern is used by every sheet. */
+    .app.desk .sheet-wrap,
+    .app.desk .scrim {
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+    }
+
+    .app.desk .sheet-wrap .sheet-card,
+    .app.desk .scrim > .card {
+        max-width: 470px;
+        border-radius: var(--r-xl);
+    }
+
+    .app.desk .sheet-wrap .grabber {
+        display: none;
+    }
+
+    /* The toast hangs off the content column, not the whole window. */
+    .app.desk .toast {
+        left: calc(50% + 118px);
+    }
+}

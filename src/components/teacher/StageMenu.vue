@@ -118,7 +118,7 @@ async function remove() {
   width: 100%;
   background: var(--card);
   border-radius: 24px 24px 0 0;
-  padding: 22px 22px calc(24px + env(safe-area-inset-bottom));
+  padding: 22px 22px calc(24px + var(--lx-foot));
   max-height: 90%;
   overflow-y: auto;
 }

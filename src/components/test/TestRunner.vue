@@ -635,7 +635,7 @@ onBeforeUnmount(stopSpeech)
 }
 
 .runner-foot {
-  padding: 14px 22px calc(14px + env(safe-area-inset-bottom));
+  padding: 14px 22px calc(14px + var(--lx-foot));
   flex: none;
 }
 

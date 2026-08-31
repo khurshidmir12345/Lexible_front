@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import Onboarding from './components/onboarding/Onboarding.vue'
 import RolePicker from './components/onboarding/RolePicker.vue'
 import AppShell from './components/app/AppShell.vue'
@@ -7,6 +7,7 @@ import TeacherShell from './components/teacher/TeacherShell.vue'
 import Toast from './components/ui/Toast.vue'
 import Mascot from './components/ui/Mascot.vue'
 import { store } from './lib/store'
+import { telegram } from './lib/telegram'
 
 const user = computed(() => store.state.user)
 
@@ -19,11 +20,22 @@ const askRole = computed(() => Boolean(user.value) && !user.value.role_chosen)
 const isTeacher = computed(() => user.value?.role === 'teacher')
 const needsOnboarding = computed(() => !isTeacher.value && !user.value?.onboarded)
 
+/*
+ * Teachers on a desktop client get the full-window layout (styles/desktop.css)
+ * instead of the phone frame — that is where roadmaps get built and results
+ * get read. Students keep the phone-shaped column even on a PC.
+ */
+const desk = computed(() => isTeacher.value && telegram.isDesktop)
+
+// Phones go fullscreen at init; a desktop window only does once the account
+// turns out to be a teacher's, so a student's PC keeps the small window.
+watch(desk, (on) => on && telegram.fullscreen(), { immediate: true })
+
 onMounted(() => store.boot())
 </script>
 
 <template>
-  <div class="app" :class="{ dark: store.state.dark }">
+  <div class="app" :class="{ dark: store.state.dark, desk }">
     <!--
       Overlays opened from inside a scrolling tab are teleported here. `.tabs`
       clips its children, so an overlay rendered in place would only cover the

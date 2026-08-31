@@ -112,7 +112,7 @@ watch(tab, (next) => {
 </script>
 
 <template>
-  <div class="view active">
+  <div class="view active t-shell">
     <header class="v-topbar">
       <div v-if="tab !== 'paths'" class="head-text">
         <div class="greeting">{{ TITLES[tab]() }}</div>

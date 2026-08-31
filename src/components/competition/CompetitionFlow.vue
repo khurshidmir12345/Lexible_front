@@ -158,7 +158,7 @@ onBeforeUnmount(stopPolling)
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 30px 26px calc(30px + env(safe-area-inset-bottom));
+  padding: 30px 26px calc(30px + var(--lx-foot));
   background: var(--canvas);
   text-align: center;
   z-index: 30;
