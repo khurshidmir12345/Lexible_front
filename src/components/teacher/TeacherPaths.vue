@@ -297,10 +297,6 @@ defineExpose({ load })
         </template>
       </div>
 
-      <div class="hint">
-        <span v-html="TeacherIcon.info"></span>
-        <b>Bosqichlar cheksiz. Kartani bosing — lugʼat tahriri, natijalar yoki oʼyin.</b>
-      </div>
     </div>
 
     <!-- No paths yet -->
@@ -611,23 +607,6 @@ defineExpose({ load })
   text-align: center;
   line-height: 1.35;
 }
-
-.hint {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 11px 14px;
-}
-
-.hint > span { color: var(--green); display: grid; place-items: center; flex: none; }
-.hint b { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.4; }
 
 /* --------------------------------------------------------------- sheets */
 
