@@ -1,5 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import ReportSheet from '../ui/ReportSheet.vue'
+import { flagIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { speak, stop as stopSpeech } from '../../lib/speech'
 import { store } from '../../lib/store'
@@ -56,6 +58,19 @@ const matchResults = ref([])
 
 const spellInput = ref(null)
 const startedAt = Date.now()
+
+/** The word behind the flag button, or null while no sheet is open. */
+const reporting = ref(null)
+
+// The current question knows its word on the card screen; after an answer
+// the feedback reveals it for every other type. A match round covers many
+// words at once, so it carries no flag.
+function reportCurrent() {
+  const en = current.value?.en ?? feedback.value?.word?.en
+  if (!en) return
+
+  reporting.value = { id: current.value?.word_id ?? null, en }
+}
 
 const current = computed(() => queue.value[position.value] ?? null)
 
@@ -524,6 +539,7 @@ onBeforeUnmount(stopSpeech)
       <div class="runner-foot">
         <template v-if="current?.type === 'card'">
           <div class="two">
+            <button class="foot-flag" aria-label="Shikoyat yuborish" @click="reportCurrent" v-html="flagIcon"></button>
             <button class="btn btn-soft" :disabled="busy" @click="cardAnswer(false)">Takror</button>
             <button class="btn btn-primary" :disabled="busy" @click="cardAnswer(true)">Bilaman</button>
           </div>
@@ -548,6 +564,13 @@ onBeforeUnmount(stopSpeech)
 
       <!-- FEEDBACK SHEET -->
       <div v-if="feedback" class="sheet" :class="feedback.correct ? 't-ok' : 'no'">
+        <button
+          v-if="!feedback.match"
+          class="sheet-flag"
+          aria-label="Shikoyat yuborish"
+          @click="reportCurrent"
+          v-html="flagIcon"
+        ></button>
         <div class="sheet-head">
           <span class="sheet-ic">
             <svg v-if="feedback.correct" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -582,6 +605,8 @@ onBeforeUnmount(stopSpeech)
           Davom etish
         </button>
       </div>
+
+      <ReportSheet v-if="reporting" :word="reporting" @close="reporting = null" />
     </template>
   </div>
 </template>
@@ -685,6 +710,33 @@ onBeforeUnmount(stopSpeech)
 
 .two .btn {
   flex: 1;
+}
+
+.foot-flag {
+  width: 46px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.sheet-flag {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 /* options */

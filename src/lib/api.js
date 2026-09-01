@@ -118,6 +118,7 @@ export const api = {
   removeWord: (id, wordId) => request('DELETE', `/categories/${id}/words/${wordId}`),
 
   searchWords: (query) => request('GET', `/words/search?q=${encodeURIComponent(query)}`),
+  reportWord: (data) => request('POST', '/words/report', data),
   learned: (filter = 'learned') => request('GET', `/learned?filter=${filter}`),
 
   createDuel: (categoryId, types) => request('POST', `/categories/${categoryId}/duels`, { types }),

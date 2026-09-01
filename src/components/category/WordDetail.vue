@@ -1,9 +1,15 @@
 <script setup>
-import { speakerIcon2 } from '../../lib/icons2'
+import { ref, watch } from 'vue'
+import ReportSheet from '../ui/ReportSheet.vue'
+import { flagIcon, speakerIcon2 } from '../../lib/icons2'
 import { speak } from '../../lib/speech'
 
-defineProps({ word: Object })
+const props = defineProps({ word: Object })
 defineEmits(['close'])
+
+const reporting = ref(false)
+
+watch(() => props.word, () => (reporting.value = false))
 </script>
 
 <template>
@@ -15,6 +21,7 @@ defineEmits(['close'])
           <div class="word">{{ word.en }}</div>
           <div v-if="word.transcription" class="phon">[ {{ word.transcription.replace(/\//g, '') }} ]</div>
         </div>
+        <button class="flag" aria-label="Shikoyat yuborish" @click="reporting = true" v-html="flagIcon"></button>
         <button class="say" @click="speak(word.en, word.audio)" v-html="speakerIcon2"></button>
       </div>
 
@@ -30,6 +37,8 @@ defineEmits(['close'])
       <button class="btn btn-primary" style="margin-top: 18px" @click="$emit('close')">Yopish</button>
     </div>
   </div>
+
+  <ReportSheet v-if="reporting && word" :word="word" @close="reporting = false" />
 </template>
 
 <style scoped>
@@ -102,6 +111,19 @@ defineEmits(['close'])
   border: 1px solid var(--line);
   background: none;
   color: var(--green-dark);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.flag {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
   display: grid;
   place-items: center;
   cursor: pointer;
