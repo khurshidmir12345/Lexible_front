@@ -133,7 +133,9 @@ const formatDate = (iso) => {
   return `${d}.${m}.${y.slice(2)}`
 }
 
-const isCreate = (node) => node.status !== 'locked' && !node.title
+// An exam node never has a title — it must keep its IMTIHON face, not turn
+// into a "create a category" ghost.
+const isCreate = (node) => node.status !== 'locked' && !node.title && node.type !== 'exam'
 
 const canvasEl = ref(null)
 

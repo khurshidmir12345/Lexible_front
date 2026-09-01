@@ -107,6 +107,16 @@ const LABEL = {
   match: 'SOʼZLARNI JUFTLANG',
 }
 
+/** Short names for the exam autopsy rows and chips. */
+const TYPE_NAME = {
+  card: 'Karta',
+  uz2en: '→ inglizcha',
+  en2uz: '→ tarjima',
+  spell: 'Imlo',
+  image: 'Rasm',
+  match: 'Juftlash',
+}
+
 function shuffle(items) {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -361,7 +371,7 @@ onBeforeUnmount(stopSpeech)
 <template>
   <div class="overlay show runner">
     <!-- RESULT -->
-    <div v-if="result" class="result">
+    <div v-if="result" class="result" :class="{ detailed: result.breakdown?.length }">
       <div class="ring-wrap">
         <svg width="132" height="132" viewBox="0 0 132 132">
           <circle cx="66" cy="66" r="58" fill="none" stroke="var(--line-3)" stroke-width="12" />
@@ -401,6 +411,30 @@ onBeforeUnmount(stopSpeech)
           <b>{{ result.category_progress }}%</b>
         </div>
       </div>
+
+      <!-- Exam autopsy: how each exercise went, then every question. -->
+      <template v-if="result.breakdown?.length">
+        <div class="ex-types">
+          <div v-for="(stat, key) in result.by_type" :key="key" class="ex-type">
+            <b class="v-num" :class="{ full: stat.correct === stat.total }">{{ stat.correct }}/{{ stat.total }}</b>
+            <span>{{ TYPE_NAME[key] ?? key }}</span>
+          </div>
+        </div>
+
+        <div class="ex-list">
+          <div v-for="(row, index) in result.breakdown" :key="index" class="ex-row">
+            <span class="ex-mark" :class="row.correct ? 'ok' : 'no'">
+              <svg v-if="row.correct" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l5 5L20 7" /></svg>
+              <svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </span>
+            <span class="ex-word">
+              <b>{{ row.en }}</b>
+              <i>{{ row.translation ?? '—' }}</i>
+            </span>
+            <span class="ex-kind">{{ TYPE_NAME[row.type] ?? row.type }}</span>
+          </div>
+        </div>
+      </template>
 
       <div class="res-foot">
         <button class="btn btn-primary" @click="close">
@@ -1234,6 +1268,115 @@ onBeforeUnmount(stopSpeech)
   gap: 16px;
   padding: 30px 26px;
   text-align: center;
+}
+
+/* The exam autopsy makes the page taller than the screen — top-align and scroll. */
+.result.detailed {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-top: 22px;
+}
+
+.ex-types {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.ex-type {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+}
+
+.ex-type b {
+  font-size: 15px;
+  color: var(--red-dark);
+}
+
+.ex-type b.full {
+  color: var(--green-dark);
+}
+
+.ex-type span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.ex-list {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  flex: none;
+}
+
+.ex-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--wash);
+  text-align: left;
+}
+
+.ex-row:last-child {
+  border-bottom: none;
+}
+
+.ex-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.ex-mark.ok {
+  background: var(--green);
+}
+
+.ex-mark.no {
+  background: var(--red);
+}
+
+.ex-word {
+  flex: 1;
+  min-width: 0;
+}
+
+.ex-word b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ex-word i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ex-kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--faint);
+  flex: none;
 }
 
 .ring-wrap {

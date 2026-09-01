@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { api } from '../../lib/api'
+import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 import Modal from '../ui/Modal.vue'
 
@@ -17,6 +18,9 @@ watch(() => props.node, async (node) => {
   try {
     const { exam } = await api.examBriefing(node.id)
     brief.value = exam
+  } catch (error) {
+    store.toast(error.message)
+    emit('close')
   } finally {
     loading.value = false
   }
@@ -49,7 +53,7 @@ function start() {
 
     <template #actions>
       <button class="btn btn-ghost" @click="emit('close')">Bekor</button>
-      <button class="btn" :disabled="loading || !brief?.ready" @click="start">
+      <button class="btn btn-primary" :disabled="loading || !brief?.ready" @click="start">
         Boshlash
       </button>
     </template>
