@@ -79,12 +79,14 @@ onMounted(load)
           />
         </svg>
 
-        <span
+        <img
           v-for="item in decor"
           :key="item.key"
           class="trinket"
+          :src="item.img"
+          alt=""
           :style="{ top: `${item.top}px`, left: `${item.left}px` }"
-        >{{ item.emoji }}</span>
+        />
 
         <template v-for="stage in nodes" :key="stage.id">
           <span
@@ -148,8 +150,10 @@ onMounted(load)
 
 .trinket {
   position: absolute;
-  font-size: 26px;
-  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .16));
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .18));
   pointer-events: none;
 }
 

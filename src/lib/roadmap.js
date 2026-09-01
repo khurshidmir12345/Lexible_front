@@ -43,16 +43,25 @@ export function connectors(nodes) {
 export const canvasHeight = (count, { top = TOP } = {}) => top + count * GAP + 40
 
 /**
- * Decoration dropped into the gaps between cards — the scenery a real map
- * would have: flowers by the road, a bridge, a fountain, trees.
+ * Decoration dropped into the gaps between cards — 3D game-map scenery
+ * (Fluent Emoji, MIT), not flat symbols: trees, rocks, a fountain…
  */
-const TRINKETS = ['🌸', '🌉', '🌼', '🌳', '⛲', '🦋', '🌿', '🌷']
+import treeImg from '../assets/map/tree.png'
+import pineImg from '../assets/map/pine.png'
+import rockImg from '../assets/map/rock.png'
+import fountainImg from '../assets/map/fountain.png'
+import mushroomImg from '../assets/map/mushroom.png'
+import blossomImg from '../assets/map/blossom.png'
+import woodImg from '../assets/map/wood.png'
+import trophyImg from '../assets/map/trophy.png'
+
+const STICKERS = [treeImg, rockImg, blossomImg, pineImg, fountainImg, mushroomImg, woodImg, trophyImg]
 
 export function trinkets(nodes) {
   return nodes.slice(0, -1).map((upper, i) => ({
     key: `t${i}`,
-    emoji: TRINKETS[i % TRINKETS.length],
-    top: upper.cy + GAP / 2 - 14,
-    left: WIDTH / 2 - 34 + (i % 2 === 0 ? 24 : -24),
+    img: STICKERS[i % STICKERS.length],
+    top: upper.cy + GAP / 2 - 20,
+    left: WIDTH / 2 - 40 + (i % 2 === 0 ? 26 : -26),
   }))
 }

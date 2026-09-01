@@ -41,15 +41,26 @@ const draft = ref({ title: '', subtitle: '' })
 const current = computed(() => paths.value.find((p) => p.id === activeId.value) ?? null)
 
 /**
- * The map is drawn from the top down, newest stage first — visually the same
- * road the students walk. The "add" card rides the zig-zag itself, sitting
- * exactly where the next stage will land.
+ * The whole road is pre-drawn — ten stages from day one. The teacher fills
+ * stage 1, which unlocks stage 2, and so on; only once every card is written
+ * does an "add" card appear to extend the road.
  */
 const nodes = computed(() => {
-  const stages = current.value?.stages ?? []
-  const nextPosition = stages.reduce((max, s) => Math.max(max, s.position), 0) + 1
+  const stages = [...(current.value?.stages ?? [])].sort((a, b) => a.position - b.position)
 
-  return layout([...stages, { id: '__add__', add: true, position: nextPosition }], { top: TOP })
+  let previousFilled = true
+  const marked = stages.map((stage) => {
+    const editable = previousFilled
+    previousFilled = stage.words_count > 0
+    return { ...stage, locked: !editable }
+  })
+
+  const allFilled = marked.length > 0 && marked.every((s) => s.words_count > 0)
+  if (allFilled) {
+    marked.push({ id: '__add__', add: true, position: marked.length + 1 })
+  }
+
+  return layout(marked, { top: TOP })
 })
 const links = computed(() => connectors(nodes.value))
 const decor = computed(() => trinkets(nodes.value))
@@ -137,6 +148,12 @@ async function addStage() {
 }
 
 function openStage(stage) {
+  if (stage.locked) {
+    telegram.notify('warning')
+    store.toast('🔒 Avval oldingi bosqichni toʼldiring')
+    return
+  }
+
   telegram.haptic()
   menuStage.value = { ...stage, path: current.value }
 }
@@ -214,12 +231,14 @@ defineExpose({ load })
           />
         </svg>
 
-        <span
+        <img
           v-for="item in decor"
           :key="item.key"
           class="trinket"
+          :src="item.img"
+          alt=""
           :style="{ top: `${item.top}px`, left: `${item.left}px` }"
-        >{{ item.emoji }}</span>
+        />
 
         <template v-for="stage in nodes" :key="stage.id">
           <!-- The next stage lands here — drawn like the student's create card. -->
@@ -240,30 +259,40 @@ defineExpose({ load })
           <button
             v-else
             class="node"
-            :class="[stage.type === 'exam' ? 'exam' : stage.words_count ? 'filled' : 'empty']"
+            :class="[
+              stage.locked ? 'locked'
+                : stage.type === 'exam' ? 'exam'
+                : stage.words_count ? 'filled' : 'empty',
+            ]"
             :style="{ top: `${stage.top}px`, [stage.side]: `${INSET}px` }"
             @click="openStage(stage)"
           >
             <span class="head">
               <b class="v-num">{{ stage.position }}</b>
-              <i>{{ stage.words_count }} soʼz</i>
+              <i v-if="!stage.locked">{{ stage.words_count }} soʼz</i>
             </span>
 
             <span class="ring">
+              <!-- locked: fill the previous stage first -->
+              <svg v-if="stage.locked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <rect x="5" y="11" width="14" height="9" rx="2.5" />
+                <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
+              </svg>
               <!-- exam -->
-              <svg v-if="stage.type === 'exam'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="stage.type === 'exam'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
               </svg>
               <!-- filled: the lesson is written -->
               <svg v-else-if="stage.words_count" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 13l5 5L20 7" />
               </svg>
-              <!-- empty: still to write -->
+              <!-- next up: write me -->
               <span v-else class="ring-pen" v-html="TeacherIcon.pencil"></span>
             </span>
 
-            <span v-if="stage.type === 'exam'" class="tag">IMTIHON</span>
-            <span v-else class="pill">{{ (stage.title || 'NOMSIZ').toUpperCase() }}</span>
+            <span v-if="stage.locked" class="tag dim">QULF</span>
+            <span v-else-if="stage.type === 'exam'" class="tag">IMTIHON</span>
+            <span v-else class="pill">{{ (stage.title || (stage.words_count ? 'NOMSIZ' : 'TUZING')).toUpperCase() }}</span>
           </button>
         </template>
       </div>
@@ -441,8 +470,10 @@ defineExpose({ load })
 
 .trinket {
   position: absolute;
-  font-size: 26px;
-  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .16));
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .18));
   pointer-events: none;
 }
 
@@ -485,6 +516,21 @@ defineExpose({ load })
   box-shadow: 0 5px 0 #97772E;
   color: #3A2E08;
 }
+
+.node.locked {
+  background: linear-gradient(165deg, #E9E4D2, #DCD5BC);
+  box-shadow: 0 5px 0 #C8C0A4;
+  color: #96896A;
+  cursor: default;
+}
+
+.app.dark .node.locked {
+  background: #3A3322;
+  box-shadow: 0 5px 0 #292414;
+  color: #9A8F6E;
+}
+
+.tag.dim { opacity: .75; }
 
 .head { display: flex; justify-content: space-between; align-items: baseline; }
 
