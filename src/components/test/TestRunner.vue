@@ -62,6 +62,23 @@ const startedAt = Date.now()
 /** The word behind the flag button, or null while no sheet is open. */
 const reporting = ref(null)
 
+/* coins */
+const coinsEarned = ref(0)          // running total for this round
+const coinGain = ref(null)          // {amount, key} — drives the fly-up "+N"
+let coinKey = 0
+
+function bankCoins(amount) {
+  if (!amount) return
+
+  coinsEarned.value += amount
+  const key = ++coinKey
+  coinGain.value = { amount, key }
+  // The chip settles back down once the flight is over.
+  setTimeout(() => {
+    if (coinGain.value?.key === key) coinGain.value = null
+  }, 900)
+}
+
 // The current question knows its word on the card screen; after an answer
 // the feedback reveals it for every other type. A match round covers many
 // words at once, so it carries no flag.
@@ -153,11 +170,13 @@ function advance(requeue = false) {
 async function send(answer) {
   busy.value = true
   try {
-    return await api.answer(props.sessionId, {
+    const res = await api.answer(props.sessionId, {
       question_id: current.value.id,
       answer,
       response_ms: 0,
     })
+    bankCoins(res?.coins_earned ?? 0)
+    return res
   } catch (error) {
     store.toast(error.message)
     return null
@@ -369,6 +388,10 @@ onBeforeUnmount(stopSpeech)
           <span>Seriya</span>
           <b>{{ result.streak_days }} kun 🔥</b>
         </div>
+        <div class="res-row">
+          <span>Tangalar</span>
+          <b class="res-coins">⭐ +{{ coinsEarned }}</b>
+        </div>
         <div v-if="result.is_exam" class="res-row">
           <span>Oʼtish balli</span>
           <b>{{ result.pass_mark }}%</b>
@@ -413,6 +436,10 @@ onBeforeUnmount(stopSpeech)
         </button>
         <div class="track"><i :style="{ width: progress + '%' }"></i></div>
         <span class="count">{{ askedSoFar }}/{{ totalAsked }}</span>
+        <span class="coin-chip" :class="{ glow: coinGain }">
+          ⭐ <b :key="coinsEarned" class="v-num">{{ coinsEarned }}</b>
+          <i v-if="coinGain" :key="coinGain.key" class="coin-fly">+{{ coinGain.amount }}</i>
+        </span>
       </div>
 
       <div v-if="current" class="runner-body">
@@ -587,10 +614,10 @@ onBeforeUnmount(stopSpeech)
             </div>
             <div class="sheet-sub">
               <template v-if="feedback.match">
-                {{ feedback.match.right }} / {{ feedback.match.total }} juftlik toʼgʼri topildi
+                {{ feedback.match.right }} / {{ feedback.match.total }} juftlik toʼgʼri topildi<b v-if="feedback.coins_earned" class="coin-note">⭐ +{{ feedback.coins_earned }}</b>
               </template>
               <template v-else-if="feedback.correct">
-                {{ feedback.word?.en }} — {{ feedback.word?.translation }} · +1 tanga
+                {{ feedback.word?.en }} — {{ feedback.word?.translation }}<b v-if="feedback.coins_earned" class="coin-note">⭐ +{{ feedback.coins_earned }}</b>
               </template>
               <template v-else>
                 Toʼgʼri javob: <b>{{ feedback.answer }}</b> — {{ feedback.word?.translation }}
@@ -657,6 +684,57 @@ onBeforeUnmount(stopSpeech)
   font-size: 11.5px;
   font-weight: 700;
   color: var(--faint);
+}
+
+/* running coin total */
+
+.coin-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--gold-text);
+  flex: none;
+  transition: box-shadow .3s;
+}
+
+.coin-chip.glow {
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+.coin-chip b {
+  font-size: 12.5px;
+  /* The number remounts on every gain (it is keyed), replaying the pop. */
+  animation: coin-pop .35s cubic-bezier(.2, 1.8, .4, 1);
+}
+
+@keyframes coin-pop {
+  from { transform: scale(1.7); }
+  to { transform: scale(1); }
+}
+
+.coin-fly {
+  position: absolute;
+  top: -4px;
+  right: 8px;
+  font-style: normal;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  pointer-events: none;
+  animation: coin-fly .9s ease-out forwards;
+}
+
+@keyframes coin-fly {
+  0% { opacity: 0; transform: translateY(4px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-18px); }
 }
 
 .runner-body {
@@ -1067,6 +1145,12 @@ onBeforeUnmount(stopSpeech)
   color: var(--ink);
 }
 
+.sheet-sub .coin-note {
+  margin-left: 8px;
+  color: var(--gold-text);
+  white-space: nowrap;
+}
+
 .sheet-note {
   font-size: 12px;
   font-weight: 700;
@@ -1206,6 +1290,10 @@ onBeforeUnmount(stopSpeech)
 .res-row span {
   color: var(--muted);
   font-weight: 600;
+}
+
+.res-coins {
+  color: var(--gold-text);
 }
 
 .res-foot {
