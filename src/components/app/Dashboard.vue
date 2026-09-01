@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import CoinsSheet from '../sheets/CoinsSheet.vue'
 import StreakSheet from '../sheets/StreakSheet.vue'
 import { WEEKDAYS } from '../../lib/languages'
+import { coinIcon } from '../../lib/icons2'
 import { store } from '../../lib/store'
 
 const sheet = ref(null)   // 'coins' | 'streak'
@@ -58,7 +59,7 @@ const goalPercent = computed(() => {
       </div>
 
       <div class="tile gold tappable" @click="sheet = 'coins'">
-        <span class="emoji">⭐</span>
+        <span class="emoji" v-html="coinIcon"></span>
         <div class="value">{{ data.coins ?? 0 }}</div>
         <div class="v-label" style="color: var(--gold-muted)">tanga toʼplandi</div>
         <div class="hint-gold">har mashq +1 · duel +10</div>

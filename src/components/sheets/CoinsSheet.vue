@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { coinIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 
@@ -20,7 +21,7 @@ onMounted(async () => {
   <div class="dialog-wrap open">
     <div class="dialog">
       <div class="head">
-        <span class="coin">⭐</span>
+        <span class="coin" v-html="coinIcon"></span>
         <div>
           <div class="amount">{{ data?.balance ?? 0 }} tanga</div>
           <div class="hint">soʼz yodlab, gʼalaba qozonib yigʼasiz</div>

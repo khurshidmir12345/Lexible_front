@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ReportSheet from '../ui/ReportSheet.vue'
-import { flagIcon } from '../../lib/icons2'
+import { coinIcon, flagIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { speak, stop as stopSpeech } from '../../lib/speech'
 import { store } from '../../lib/store'
@@ -400,7 +400,7 @@ onBeforeUnmount(stopSpeech)
         </div>
         <div class="res-row">
           <span>Tangalar</span>
-          <b class="res-coins">⭐ +{{ coinsEarned }}</b>
+          <b class="res-coins"><span class="ci" v-html="coinIcon"></span> +{{ coinsEarned }}</b>
         </div>
         <div v-if="result.is_exam" class="res-row">
           <span>Oʼtish balli</span>
@@ -471,7 +471,7 @@ onBeforeUnmount(stopSpeech)
         <div class="track"><i :style="{ width: progress + '%' }"></i></div>
         <span class="count">{{ askedSoFar }}/{{ totalAsked }}</span>
         <span class="coin-chip" :class="{ glow: coinGain }">
-          ⭐ <b :key="coinsEarned" class="v-num">{{ coinsEarned }}</b>
+          <span class="ci" v-html="coinIcon"></span> <b :key="coinsEarned" class="v-num">{{ coinsEarned }}</b>
           <i v-if="coinGain" :key="coinGain.key" class="coin-fly">+{{ coinGain.amount }}</i>
         </span>
       </div>
@@ -648,10 +648,10 @@ onBeforeUnmount(stopSpeech)
             </div>
             <div class="sheet-sub">
               <template v-if="feedback.match">
-                {{ feedback.match.right }} / {{ feedback.match.total }} juftlik toʼgʼri topildi<b v-if="feedback.coins_earned" class="coin-note">⭐ +{{ feedback.coins_earned }}</b>
+                {{ feedback.match.right }} / {{ feedback.match.total }} juftlik toʼgʼri topildi<b v-if="feedback.coins_earned" class="coin-note"><span class="ci" v-html="coinIcon"></span>+{{ feedback.coins_earned }}</b>
               </template>
               <template v-else-if="feedback.correct">
-                {{ feedback.word?.en }} — {{ feedback.word?.translation }}<b v-if="feedback.coins_earned" class="coin-note">⭐ +{{ feedback.coins_earned }}</b>
+                {{ feedback.word?.en }} — {{ feedback.word?.translation }}<b v-if="feedback.coins_earned" class="coin-note"><span class="ci" v-html="coinIcon"></span>+{{ feedback.coins_earned }}</b>
               </template>
               <template v-else>
                 Toʼgʼri javob: <b>{{ feedback.answer }}</b> — {{ feedback.word?.translation }}
@@ -721,6 +721,21 @@ onBeforeUnmount(stopSpeech)
 }
 
 /* running coin total */
+
+.ci {
+  display: inline-flex;
+  line-height: 1;
+}
+
+.coin-chip .ci,
+.res-coins .ci {
+  font-size: 14px;
+}
+
+.coin-note .ci {
+  font-size: 13px;
+  margin-right: 3px;
+}
 
 .coin-chip {
   position: relative;
