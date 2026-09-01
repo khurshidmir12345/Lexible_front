@@ -40,11 +40,20 @@ const draft = ref({ title: '', subtitle: '' })
 
 const current = computed(() => paths.value.find((p) => p.id === activeId.value) ?? null)
 
-/** The map is drawn from the top down, with the newest stage first. */
-const nodes = computed(() => layout(current.value?.stages ?? [], { top: TOP }))
+/**
+ * The map is drawn from the top down, newest stage first — visually the same
+ * road the students walk. The "add" card rides the zig-zag itself, sitting
+ * exactly where the next stage will land.
+ */
+const nodes = computed(() => {
+  const stages = current.value?.stages ?? []
+  const nextPosition = stages.reduce((max, s) => Math.max(max, s.position), 0) + 1
+
+  return layout([...stages, { id: '__add__', add: true, position: nextPosition }], { top: TOP })
+})
 const links = computed(() => connectors(nodes.value))
 const decor = computed(() => trinkets(nodes.value))
-const height = computed(() => canvasHeight(nodes.value.length + 1))
+const height = computed(() => canvasHeight(nodes.value.length))
 
 async function load() {
   loading.value = true
@@ -190,13 +199,19 @@ defineExpose({ load })
 
     <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
-    <!-- The map itself -->
+    <!-- The map itself — the same road the students see. -->
     <div v-else-if="current" class="canvas">
       <div class="inner" :style="{ height: `${height}px` }">
-        <!-- The road: a solid ribbon with a dashed centre line, like a real map. -->
         <svg class="links" :viewBox="`0 0 390 ${height}`" preserveAspectRatio="none" fill="none">
-          <path v-for="(d, i) in links" :key="`b${i}`" :d="d" class="road-base" stroke-linecap="round" />
-          <path v-for="(d, i) in links" :key="`c${i}`" :d="d" class="road-line" stroke-linecap="round" />
+          <path
+            v-for="(d, i) in links"
+            :key="i"
+            :d="d"
+            class="road"
+            stroke-width="4.5"
+            stroke-linecap="round"
+            stroke-dasharray="8 12"
+          />
         </svg>
 
         <span
@@ -206,30 +221,51 @@ defineExpose({ load })
           :style="{ top: `${item.top}px`, left: `${item.left}px` }"
         >{{ item.emoji }}</span>
 
-        <!-- The road always grows from the top: the next stage lands here. -->
-        <button class="add-stage" @click="addStage">
-          <span class="add-stage-plus" v-html="TeacherIcon.plus"></span>
-          Bosqich qoʼshish
-        </button>
+        <template v-for="stage in nodes" :key="stage.id">
+          <!-- The next stage lands here — drawn like the student's create card. -->
+          <button
+            v-if="stage.add"
+            class="node create"
+            :style="{ top: `${stage.top}px`, [stage.side]: `${INSET}px` }"
+            @click="addStage"
+          >
+            <span class="ring dashed">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#98A49C" stroke-width="2.2" stroke-linecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+            <span class="create-label">BOSQICH<br />QOʼSHISH</span>
+          </button>
 
-        <button
-          v-for="stage in nodes"
-          :key="stage.id"
-          class="node"
-          :class="[stage.type === 'exam' ? 'exam' : stage.words_count ? 'filled' : 'empty']"
-          :style="{ top: `${stage.top}px`, [stage.side]: `${INSET}px` }"
-          @click="openStage(stage)"
-        >
-          <span class="node-head">
-            <b class="v-num">{{ stage.position }}</b>
-            <span v-if="stage.type === 'exam'" class="node-crest">🏅</span>
-            <span v-else class="node-pen" v-html="TeacherIcon.pencil"></span>
-          </span>
-          <span class="node-foot">
-            {{ stage.title || (stage.type === 'exam' ? 'Imtihon' : 'Nomsiz') }}<br />
-            <i>{{ stage.type === 'exam' ? 'sinov' : `${stage.words_count} soʼz` }}</i>
-          </span>
-        </button>
+          <button
+            v-else
+            class="node"
+            :class="[stage.type === 'exam' ? 'exam' : stage.words_count ? 'filled' : 'empty']"
+            :style="{ top: `${stage.top}px`, [stage.side]: `${INSET}px` }"
+            @click="openStage(stage)"
+          >
+            <span class="head">
+              <b class="v-num">{{ stage.position }}</b>
+              <i>{{ stage.words_count }} soʼz</i>
+            </span>
+
+            <span class="ring">
+              <!-- exam -->
+              <svg v-if="stage.type === 'exam'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7-5.1-2.8-5.1 2.8 1.1-5.7-4.2-4 5.7-.7z" />
+              </svg>
+              <!-- filled: the lesson is written -->
+              <svg v-else-if="stage.words_count" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 13l5 5L20 7" />
+              </svg>
+              <!-- empty: still to write -->
+              <span v-else class="ring-pen" v-html="TeacherIcon.pencil"></span>
+            </span>
+
+            <span v-if="stage.type === 'exam'" class="tag">IMTIHON</span>
+            <span v-else class="pill">{{ (stage.title || 'NOMSIZ').toUpperCase() }}</span>
+          </button>
+        </template>
       </div>
 
       <div class="hint">
@@ -400,11 +436,8 @@ defineExpose({ load })
 
 .links { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-.road-base { stroke: #EBDDB2; stroke-width: 14; }
-.road-line { stroke: #fff; stroke-width: 2.5; stroke-dasharray: 1 11; }
-
-.app.dark .road-base { stroke: #24301F; }
-.app.dark .road-line { stroke: #3D4A38; }
+.road { stroke: #DFD3A8; }
+.app.dark .road { stroke: #33402F; }
 
 .trinket {
   position: absolute;
@@ -413,6 +446,7 @@ defineExpose({ load })
   pointer-events: none;
 }
 
+/* The node cards are drawn exactly the way the student map draws them. */
 .node {
   position: absolute;
   width: 88px;
@@ -425,95 +459,111 @@ defineExpose({ load })
   cursor: pointer;
   font-family: 'Manrope', sans-serif;
   color: #fff;
-  text-align: left;
   transition: transform .07s;
 }
 
 .node:active { transform: translateY(3px); }
 
 .node.filled {
-  background: linear-gradient(165deg, #23BA6E, #109C52);
-  box-shadow: 0 5px 0 #0C7A3F, 0 10px 18px -8px rgba(12, 122, 63, .45);
+  background: linear-gradient(165deg, #20B56A, #0F9A50);
+  box-shadow: 0 5px 0 var(--green-deep);
 }
 
-/* An unfilled stage is an outline waiting for a lesson, not a loud blue slab. */
 .node.empty {
-  background: #FFFDF4;
-  border: 2px dashed #D9CBA0;
-  box-shadow: 0 5px 0 #E3D7B4;
-  color: #A08F5E;
+  background: linear-gradient(165deg, #3D8BFA, #2266DB);
+  box-shadow: 0 5px 0 #1B54B8;
 }
 
 .node.exam {
-  background: linear-gradient(165deg, #FBE289, #EEC64A);
-  box-shadow: 0 5px 0 var(--gold-deep), 0 10px 18px -8px rgba(201, 162, 48, .55);
-  color: var(--gold-ink);
+  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
+  box-shadow: 0 5px 0 var(--gold-deep);
+  color: #6B4E00;
 }
 
-.node.exam .node-crest { font-size: 17px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.18)); }
+.app.dark .node.exam {
+  background: #C9A54E;
+  box-shadow: 0 5px 0 #97772E;
+  color: #3A2E08;
+}
 
-.node-head { display: flex; justify-content: space-between; align-items: baseline; }
-.node-head b { font-size: 20px; line-height: 1; }
+.head { display: flex; justify-content: space-between; align-items: baseline; }
 
-.node-pen {
-  width: 20px;
-  height: 20px;
+.head .v-num { font-size: 20px; line-height: 1; }
+
+.head i {
+  font-size: 8px;
+  font-weight: 700;
+  font-style: normal;
+  opacity: .85;
+}
+
+.ring {
+  width: 30px;
+  height: 30px;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, .28);
   display: grid;
   place-items: center;
-  color: currentColor;
+  margin: 2px auto 0;
 }
 
-.node-pen :deep(svg) { width: 11px; height: 11px; }
+.node.exam .ring { background: rgba(255, 255, 255, .45); }
 
-.node.empty .node-pen { background: rgba(160, 143, 94, .16); }
+.ring-pen { display: grid; place-items: center; color: currentColor; }
+.ring-pen :deep(svg) { width: 13px; height: 13px; }
 
-.node-foot {
-  margin-top: auto;
+.ring.dashed {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 2px dashed #B9C7BC;
+  margin: 0;
+}
+
+.tag {
+  font-family: 'Sora', sans-serif;
   font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: auto;
+  text-align: center;
+}
+
+.pill {
+  background: rgba(255, 255, 255, .95);
+  color: var(--green-deep);
+  border-radius: var(--r-sm);
+  padding: 2.5px 7px;
+  font-size: 7.5px;
   font-weight: 800;
-  line-height: 1.3;
+  margin-top: auto;
+  align-self: center;
+  letter-spacing: .3px;
+  max-width: 100%;
   overflow: hidden;
-}
-
-.node-foot i { font-style: normal; font-weight: 700; opacity: .85; }
-
-/* "Add" is a pill on the road itself, where the next stage will land. */
-.add-stage {
-  position: absolute;
-  top: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 2px dashed #CBB878;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, .82);
-  padding: 10px 18px 10px 12px;
-  font-family: 'Manrope', sans-serif;
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #8A7534;
-  cursor: pointer;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transition: transform .07s;
 }
 
-.add-stage:active { transform: translateX(-50%) translateY(2px); }
+.node.empty .pill { color: #1B54B8; }
 
-.app.dark .add-stage { background: rgba(255, 255, 255, .05); border-color: #4A3C1C; color: var(--gold-text); }
+.node.create {
+  background: var(--card);
+  border: 2px dashed #B9C7BC;
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--faint);
+}
 
-.add-stage-plus {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--r-pill);
-  background: var(--gold-mid);
-  color: var(--gold-ink);
-  display: grid;
-  place-items: center;
-  flex: none;
+.app.dark .node.create { border-color: #313D34; }
+
+.create-label {
+  font-size: 7.5px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.35;
 }
 
 .hint {
