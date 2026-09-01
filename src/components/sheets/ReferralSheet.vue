@@ -8,7 +8,7 @@ defineEmits(['close'])
 const link = computed(() => {
   const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
   const short = window.LEXIBLE?.miniAppShortName ?? 'game'
-  return `https://t.me/${bot}/${short}?startapp=ref_${store.state.user?.telegram_id}`
+  return `https://telegram.me/${bot}/${short}?startapp=ref_${store.state.user?.telegram_id}`
 })
 
 const reward = 50

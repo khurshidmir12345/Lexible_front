@@ -48,7 +48,7 @@ function invite() {
   const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
   const short = window.LEXIBLE?.miniAppShortName ?? 'game'
   telegram.share(
-    `https://t.me/${bot}/${short}?startapp=ref_${store.state.user?.telegram_id}`,
+    `https://telegram.me/${bot}/${short}?startapp=ref_${store.state.user?.telegram_id}`,
     'Lexible — ingliz tili soʼzlarini oʼyin orqali yodlang',
   )
 }
