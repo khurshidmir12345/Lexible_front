@@ -43,10 +43,10 @@ export function connectors(nodes) {
 export const canvasHeight = (count, { top = TOP } = {}) => top + count * GAP + 40
 
 /**
- * Decoration dropped into the gaps between cards. The student map picks by
- * season; the teacher map is a working tool, so it keeps a fixed, quieter set.
+ * Decoration dropped into the gaps between cards — the scenery a real map
+ * would have: flowers by the road, a bridge, a fountain, trees.
  */
-const TRINKETS = ['🍃', '🪵', '💎', '⛅', '🌿', '⭐']
+const TRINKETS = ['🌸', '🌉', '🌼', '🌳', '⛲', '🦋', '🌿', '🌷']
 
 export function trinkets(nodes) {
   return nodes.slice(0, -1).map((upper, i) => ({

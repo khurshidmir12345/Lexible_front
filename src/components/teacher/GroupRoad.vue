@@ -127,7 +127,12 @@ onMounted(load)
 </template>
 
 <style scoped>
-.road { background: #F3F1EA; z-index: 22; }
+.road {
+  background:
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, .55), transparent 42%),
+    #FAF3DC;
+  z-index: 22;
+}
 .app.dark .road { background: #141A15; }
 
 .flip { display: grid; place-items: center; transform: rotate(180deg); }
@@ -136,7 +141,8 @@ onMounted(load)
 
 .canvas { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
 
-.inner { position: relative; width: 100%; }
+/* Keep the phone geometry inside the wide desktop column. */
+.inner { position: relative; width: 100%; max-width: 430px; margin: 0 auto; }
 
 .links { position: absolute; inset: 0; width: 100%; display: block; }
 

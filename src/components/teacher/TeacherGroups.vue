@@ -117,10 +117,10 @@ defineExpose({ load })
     <Teleport to="#lx-overlays">
       <Modal :open="creating" title="Yangi guruh" text="Oʼquvchilar kod orqali qoʼshiladi.">
         <label class="t-field field"><span>GURUH NOMI</span>
-          <input v-model="draft.title" placeholder="Masalan: 5-A sinf" maxlength="60" />
+          <input v-model="draft.title" placeholder="Masalan: Beginner guruh" maxlength="60" />
         </label>
         <label class="t-field field"><span>IZOH</span>
-          <input v-model="draft.subtitle" placeholder="5-sinf Ingliz tili" maxlength="80" />
+          <input v-model="draft.subtitle" placeholder="Kechki guruh · Du-Chor-Ju" maxlength="80" />
         </label>
         <label class="t-field field"><span>QISQA BELGI</span>
           <input v-model="draft.badge" maxlength="4" placeholder="5A" />

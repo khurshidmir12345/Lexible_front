@@ -193,16 +193,10 @@ defineExpose({ load })
     <!-- The map itself -->
     <div v-else-if="current" class="canvas">
       <div class="inner" :style="{ height: `${height}px` }">
+        <!-- The road: a solid ribbon with a dashed centre line, like a real map. -->
         <svg class="links" :viewBox="`0 0 390 ${height}`" preserveAspectRatio="none" fill="none">
-          <path
-            v-for="(d, i) in links"
-            :key="i"
-            :d="d"
-            stroke="#D9D6C8"
-            stroke-width="4.5"
-            stroke-linecap="round"
-            stroke-dasharray="8 12"
-          />
+          <path v-for="(d, i) in links" :key="`b${i}`" :d="d" class="road-base" stroke-linecap="round" />
+          <path v-for="(d, i) in links" :key="`c${i}`" :d="d" class="road-line" stroke-linecap="round" />
         </svg>
 
         <span
@@ -212,14 +206,10 @@ defineExpose({ load })
           :style="{ top: `${item.top}px`, left: `${item.left}px` }"
         >{{ item.emoji }}</span>
 
-        <!-- The road always grows from the top, so "add" sits above stage 1. -->
-        <button
-          class="node create"
-          :style="{ top: '8px', right: `${INSET}px` }"
-          @click="addStage"
-        >
-          <span class="create-plus" v-html="TeacherIcon.plus"></span>
-          <span class="create-label">BOSQICH<br />QOʼSHISH</span>
+        <!-- The road always grows from the top: the next stage lands here. -->
+        <button class="add-stage" @click="addStage">
+          <span class="add-stage-plus" v-html="TeacherIcon.plus"></span>
+          Bosqich qoʼshish
         </button>
 
         <button
@@ -232,11 +222,12 @@ defineExpose({ load })
         >
           <span class="node-head">
             <b class="v-num">{{ stage.position }}</b>
-            <span class="node-pen" v-html="TeacherIcon.pencil"></span>
+            <span v-if="stage.type === 'exam'" class="node-crest">🏅</span>
+            <span v-else class="node-pen" v-html="TeacherIcon.pencil"></span>
           </span>
           <span class="node-foot">
-            {{ stage.title || 'Nomsiz' }}<br />
-            <i>{{ stage.words_count }} soʼz</i>
+            {{ stage.title || (stage.type === 'exam' ? 'Imtihon' : 'Nomsiz') }}<br />
+            <i>{{ stage.type === 'exam' ? 'sinov' : `${stage.words_count} soʼz` }}</i>
           </span>
         </button>
       </div>
@@ -297,12 +288,12 @@ defineExpose({ load })
         </template>
       </Modal>
 
-      <Modal :open="creating" title="Yangi yoʼl" text="Masalan: 5-sinf, IELTS boshlangʼich.">
+      <Modal :open="creating" title="Yangi yoʼl" text="Masalan: Beginner, Starter, IELTS.">
         <label class="t-field field"><span>YOʼL NOMI</span>
-          <input v-model="draft.title" placeholder="5-sinf" />
+          <input v-model="draft.title" placeholder="Beginner" />
         </label>
         <label class="t-field field"><span>IZOH</span>
-          <input v-model="draft.subtitle" placeholder="Ingliz tili" />
+          <input v-model="draft.subtitle" placeholder="Boshlangʼich daraja" />
         </label>
         <template #actions>
           <button class="btn btn-soft" @click="creating = false">Bekor</button>
@@ -388,15 +379,32 @@ defineExpose({ load })
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  background: #F3F1EA;
+  /* The teacher's map sits on a milky-yellow parchment, not office white. */
+  background:
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, .55), transparent 42%),
+    radial-gradient(circle at 82% 55%, rgba(255, 233, 170, .35), transparent 45%),
+    #FAF3DC;
   position: relative;
 }
 
 .app.dark .canvas { background: #141A15; }
 
-.inner { position: relative; width: 100%; }
+/* The map keeps its phone-artboard geometry even inside the wide desktop
+   column — otherwise the zig-zag stretches apart and falls to pieces. */
+.inner {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+}
 
-.links { position: absolute; inset: 0; width: 100%; display: block; }
+.links { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.road-base { stroke: #EBDDB2; stroke-width: 14; }
+.road-line { stroke: #fff; stroke-width: 2.5; stroke-dasharray: 1 11; }
+
+.app.dark .road-base { stroke: #24301F; }
+.app.dark .road-line { stroke: #3D4A38; }
 
 .trinket {
   position: absolute;
@@ -424,20 +432,25 @@ defineExpose({ load })
 .node:active { transform: translateY(3px); }
 
 .node.filled {
-  background: linear-gradient(165deg, #20B56A, #0F9A50);
-  box-shadow: 0 5px 0 #0C7A3F;
+  background: linear-gradient(165deg, #23BA6E, #109C52);
+  box-shadow: 0 5px 0 #0C7A3F, 0 10px 18px -8px rgba(12, 122, 63, .45);
 }
 
+/* An unfilled stage is an outline waiting for a lesson, not a loud blue slab. */
 .node.empty {
-  background: linear-gradient(165deg, #3D8BFA, #2266DB);
-  box-shadow: 0 5px 0 #1B54B8;
+  background: #FFFDF4;
+  border: 2px dashed #D9CBA0;
+  box-shadow: 0 5px 0 #E3D7B4;
+  color: #A08F5E;
 }
 
 .node.exam {
-  background: linear-gradient(165deg, var(--gold-light), var(--gold-mid));
-  box-shadow: 0 5px 0 var(--gold-deep);
+  background: linear-gradient(165deg, #FBE289, #EEC64A);
+  box-shadow: 0 5px 0 var(--gold-deep), 0 10px 18px -8px rgba(201, 162, 48, .55);
   color: var(--gold-ink);
 }
+
+.node.exam .node-crest { font-size: 17px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.18)); }
 
 .node-head { display: flex; justify-content: space-between; align-items: baseline; }
 .node-head b { font-size: 20px; line-height: 1; }
@@ -454,6 +467,8 @@ defineExpose({ load })
 
 .node-pen :deep(svg) { width: 11px; height: 11px; }
 
+.node.empty .node-pen { background: rgba(160, 143, 94, .16); }
+
 .node-foot {
   margin-top: auto;
   font-size: 9px;
@@ -464,28 +479,42 @@ defineExpose({ load })
 
 .node-foot i { font-style: normal; font-weight: 700; opacity: .85; }
 
-.node.create {
-  background: rgba(255, 255, 255, .6);
-  border: 2px dashed #B9C7BC;
-  box-shadow: none;
+/* "Add" is a pill on the road itself, where the next stage will land. */
+.add-stage {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--faint);
+  gap: 9px;
+  border: 2px dashed #CBB878;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .82);
+  padding: 10px 18px 10px 12px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #8A7534;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .07s;
 }
 
-.app.dark .node.create { background: rgba(255, 255, 255, .04); }
+.add-stage:active { transform: translateX(-50%) translateY(2px); }
 
-.create-plus {
-  width: 32px;
-  height: 32px;
+.app.dark .add-stage { background: rgba(255, 255, 255, .05); border-color: #4A3C1C; color: var(--gold-text); }
+
+.add-stage-plus {
+  width: 26px;
+  height: 26px;
   border-radius: var(--r-pill);
-  border: 2px dashed #B9C7BC;
+  background: var(--gold-mid);
+  color: var(--gold-ink);
   display: grid;
   place-items: center;
+  flex: none;
 }
-
-.create-label { font-size: 7.5px; font-weight: 800; text-align: center; line-height: 1.35; }
 
 .hint {
   position: absolute;

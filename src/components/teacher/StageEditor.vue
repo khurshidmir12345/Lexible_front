@@ -1,13 +1,15 @@
 <script setup>
 /**
- * UT-02 «Bosqich tahriri» — the teacher types the pairs themselves.
+ * UT-02 «Bosqich tahriri» — the vocabulary comes from the shared dictionary.
  *
- * The artboard separates the two jobs: one row at the top to add a word, and
- * a plain numbered list below it to review and delete. That reads far better
- * on a phone than a column of paired inputs that all look editable.
+ * The teacher never types word pairs: they search the dictionary (same base
+ * the students study from) or take a random batch matched to a level. There
+ * is no cap — a stage holds as many words as the lesson needs.
  */
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import Modal from '../ui/Modal.vue'
 import { TeacherIcon } from '../../lib/icons2'
+import { LEVELS } from '../../lib/languages'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -18,18 +20,27 @@ const emit = defineEmits(['close', 'saved'])
 const stage = ref(null)
 const title = ref('')
 const isExam = ref(false)
-const words = ref([])
-const draft = ref({ en: '', translation: '' })
+const words = ref([])           // [{id, en, translation}]
 const loading = ref(true)
 const saving = ref(false)
-const enField = ref(null)
 
-const maxWords = computed(() => stage.value?.max_words ?? 20)
-const full = computed(() => words.value.length >= maxWords.value)
-const percent = computed(() => Math.min(Math.round((words.value.length / maxWords.value) * 100), 100))
-const canAdd = computed(() =>
-  Boolean(draft.value.en.trim() && draft.value.translation.trim()) && !full.value,
-)
+/* dictionary search */
+const query = ref('')
+const results = ref([])
+const searching = ref(false)
+const searchField = ref(null)
+let debounce = null
+let skipSearch = false
+
+/* random batch */
+const randomOpen = ref(false)
+const randomLevel = ref('A1')
+const randomCount = ref(10)
+const randomBusy = ref(false)
+
+const COUNTS = [5, 10, 15, 20]
+
+const chosenIds = computed(() => new Set(words.value.map((w) => w.id)))
 
 async function load() {
   loading.value = true
@@ -39,7 +50,7 @@ async function load() {
     stage.value = data
     title.value = data.title ?? ''
     isExam.value = data.type === 'exam'
-    words.value = data.words.map((w) => ({ en: w.en, translation: w.translation ?? '' }))
+    words.value = data.words.map((w) => ({ id: w.id, en: w.en, translation: w.translation ?? '' }))
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -48,20 +59,59 @@ async function load() {
   }
 }
 
-function add() {
-  if (!canAdd.value) return
-
-  const en = draft.value.en.trim()
-
-  if (words.value.some((w) => w.en.toLowerCase() === en.toLowerCase())) {
-    store.toast('Bu soʼz roʼyxatda bor')
+async function search() {
+  const q = query.value.trim()
+  if (!q) {
+    results.value = []
     return
   }
 
-  words.value.push({ en, translation: draft.value.translation.trim() })
-  draft.value = { en: '', translation: '' }
+  searching.value = true
+  try {
+    results.value = (await api.searchWords(q)).words
+  } catch (error) {
+    store.toast(error.message)
+  } finally {
+    searching.value = false
+  }
+}
+
+// A miss triggers a dictionary API call server-side, so let typing settle.
+watch(query, () => {
+  clearTimeout(debounce)
+  if (skipSearch) {
+    skipSearch = false
+    return
+  }
+  debounce = setTimeout(search, 350)
+})
+
+/**
+ * Picking a word empties the field without collapsing the list, exactly like
+ * the student's add-words screen: siblings stay a tap away, the keyboard
+ * stays open, and the next word can be typed at once.
+ */
+function pick(word) {
+  if (chosenIds.value.has(word.id)) {
+    words.value = words.value.filter((w) => w.id !== word.id)
+    telegram.haptic()
+    return
+  }
+
+  words.value.push({ id: word.id, en: word.en, translation: word.translation ?? '' })
   telegram.haptic()
-  nextTick(() => enField.value?.focus())
+
+  if (query.value) {
+    skipSearch = true
+    query.value = ''
+  }
+  searchField.value?.focus()
+}
+
+function clearQuery() {
+  query.value = ''
+  results.value = []
+  searchField.value?.focus()
 }
 
 function drop(index) {
@@ -69,9 +119,38 @@ function drop(index) {
   telegram.haptic()
 }
 
+async function addRandom() {
+  if (randomBusy.value) return
+
+  const count = Math.min(Math.max(parseInt(randomCount.value, 10) || 10, 1), 100)
+  randomBusy.value = true
+
+  try {
+    const { words: batch } = await api.teacher.randomWords(
+      count,
+      randomLevel.value,
+      words.value.map((w) => w.id),
+    )
+
+    if (!batch.length) {
+      store.toast('Bu darajada boʼsh soʼz qolmadi')
+      return
+    }
+
+    words.value.push(...batch.map((w) => ({ id: w.id, en: w.en, translation: w.translation ?? '' })))
+    randomOpen.value = false
+    telegram.notify('success')
+    store.toast(`🎲 ${batch.length} ta soʼz qoʼshildi`)
+  } catch (error) {
+    store.toast(error.message)
+  } finally {
+    randomBusy.value = false
+  }
+}
+
 async function save() {
   if (!words.value.length) {
-    store.toast('Kamida bitta soʼz kiriting')
+    store.toast('Kamida bitta soʼz tanlang')
     return
   }
 
@@ -81,7 +160,7 @@ async function save() {
     await api.teacher.saveStage(
       props.stageId,
       title.value.trim() || null,
-      words.value,
+      words.value.map((w) => w.id),
       isExam.value ? 'exam' : 'normal',
     )
     store.toast('✅ Saqlandi')
@@ -107,7 +186,7 @@ onMounted(load)
         <h1>{{ stage ? `${stage.position}-bosqich` : 'Bosqich' }}{{ title ? ` · ${title}` : '' }}</h1>
         <p>{{ stage?.path?.title }}{{ stage?.path?.subtitle ? ` · ${stage.path.subtitle}` : '' }}</p>
       </div>
-      <span class="t-pill green">{{ words.length }}/{{ maxWords }} soʼz</span>
+      <span class="t-pill green">{{ words.length }} soʼz</span>
     </header>
 
     <div class="t-body">
@@ -115,13 +194,8 @@ onMounted(load)
 
       <template v-else>
         <label class="t-field"><span>BOSQICH NOMI</span>
-          <input v-model="title" placeholder="Masalan: Maktab jihozlari" maxlength="60" />
+          <input v-model="title" placeholder="Masalan: Greetings" maxlength="60" />
         </label>
-
-        <div class="t-note">
-          <span v-html="TeacherIcon.info"></span>
-          <b>Bir bosqichga <b>{{ maxWords }} tagacha</b> soʼz qoʼshiladi. Bosqichlar soni — cheksiz.</b>
-        </div>
 
         <label class="exam">
           <span class="exam-text">
@@ -132,36 +206,54 @@ onMounted(load)
           <span class="switch" :class="{ on: isExam }"></span>
         </label>
 
-        <div class="t-meter"><i :style="{ width: `${percent}%` }"></i></div>
+        <!-- Dictionary search + random batch -->
+        <div class="pick-row">
+          <div class="search">
+            <span class="search-ic" v-html="TeacherIcon.search"></span>
+            <input
+              ref="searchField"
+              v-model="query"
+              placeholder="Lugʼatdan soʼz qidiring…"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <button v-if="query" class="search-x" aria-label="Tozalash" @click="clearQuery">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
 
-        <!-- Add row -->
-        <div class="add" :class="{ off: full }">
-          <input
-            ref="enField"
-            v-model="draft.en"
-            placeholder="yangi soʼz (EN)"
-            autocapitalize="off"
-            autocomplete="off"
-            spellcheck="false"
-            :disabled="full"
-            @keyup.enter="add"
-          />
-          <input
-            v-model="draft.translation"
-            placeholder="tarjima (UZ)"
-            autocomplete="off"
-            :disabled="full"
-            @keyup.enter="add"
-          />
-          <button class="add-btn" :disabled="!canAdd" aria-label="Qoʼshish" @click="add">
-            <span v-html="TeacherIcon.plus"></span>
+          <button class="dice" @click="randomOpen = true">
+            🎲 <span>Random</span>
           </button>
         </div>
 
-        <p v-if="full" class="t-more">Chegara toʼldi — yangi soʼzlar uchun yangi bosqich oching.</p>
+        <!-- Search results -->
+        <div v-if="query.trim()" class="t-rows sug-list">
+          <p v-if="searching && !results.length" class="t-loading slim">Qidirilmoqda…</p>
+          <p v-else-if="!results.length" class="t-loading slim">«{{ query }}» topilmadi</p>
 
+          <button
+            v-for="word in results"
+            :key="word.id"
+            class="t-row sug"
+            @mousedown.prevent
+            @click="pick(word)"
+          >
+            <span class="sug-letter">{{ word.en.charAt(0).toLowerCase() }}</span>
+            <span class="t-row-text">
+              <b>{{ word.en }}</b>
+              <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}{{ word.level ? ' · ' + word.level : '' }}</i>
+            </span>
+            <span class="sug-mark" :class="{ on: chosenIds.has(word.id) }">
+              {{ chosenIds.has(word.id) ? '✓' : '+' }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Chosen words -->
         <div v-if="words.length" class="t-rows">
-          <div v-for="(word, index) in words" :key="`${word.en}-${index}`" class="t-row">
+          <div v-for="(word, index) in words" :key="word.id" class="t-row">
             <span class="idx">{{ index + 1 }}</span>
             <span class="pair"><b>{{ word.en }}</b> — {{ word.translation }}</span>
             <button class="del" aria-label="Oʼchirish" @click="drop(index)">
@@ -170,10 +262,10 @@ onMounted(load)
           </div>
         </div>
 
-        <div v-else class="t-empty">
+        <div v-else-if="!query.trim()" class="t-empty">
           <span class="t-empty-ic" v-html="TeacherIcon.board"></span>
           <h3>Lugʼat boʼsh</h3>
-          <p>Yuqoridagi maydonlarga inglizcha soʼz va tarjimasini yozib, ➕ ni bosing.</p>
+          <p>Bazadan soʼz qidiring yoki 🎲 Random bilan darajaga mos soʼzlar oling. Soni cheklanmagan.</p>
         </div>
       </template>
     </div>
@@ -183,6 +275,49 @@ onMounted(load)
         {{ saving ? 'Saqlanmoqda…' : 'Saqlash' }}
       </button>
     </div>
+
+    <!-- Random batch dialog -->
+    <Modal :open="randomOpen" title="Random soʼzlar" text="Daraja va sonini tanlang — bazadan tasodifiy soʼzlar olinadi.">
+      <div class="lvl-label">DARAJA</div>
+      <div class="lvls">
+        <button
+          v-for="level in LEVELS"
+          :key="level.code"
+          class="lvl"
+          :class="{ on: randomLevel === level.code }"
+          @click="randomLevel = level.code"
+        >
+          <b>{{ level.value }}</b>
+          <i>{{ level.code }}</i>
+        </button>
+      </div>
+
+      <div class="lvl-label">NECHTA SOʼZ</div>
+      <div class="counts">
+        <button
+          v-for="n in COUNTS"
+          :key="n"
+          class="cnt"
+          :class="{ on: Number(randomCount) === n }"
+          @click="randomCount = n"
+        >{{ n }}</button>
+        <input
+          v-model="randomCount"
+          class="cnt-input"
+          type="number"
+          min="1"
+          max="100"
+          inputmode="numeric"
+        />
+      </div>
+
+      <template #actions>
+        <button class="btn btn-soft" @click="randomOpen = false">Bekor</button>
+        <button class="btn btn-primary" :disabled="randomBusy" @click="addRandom">
+          {{ randomBusy ? 'Tanlanmoqda…' : 'Qoʼshish' }}
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -243,18 +378,32 @@ onMounted(load)
 .switch.on { background: var(--green); }
 .switch.on::after { transform: translateX(16px); }
 
-/* ---------------------------------------------------------------- add row */
+/* ------------------------------------------------------- search & random */
 
-.add { display: flex; gap: 9px; }
-.add.off { opacity: .5; }
+.pick-row { display: flex; gap: 9px; }
 
-.add input {
+.search {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: 13px;
-  padding: 12px 14px;
+  padding: 0 12px;
+}
+
+.search:focus-within { border-color: var(--green); }
+
+.search-ic { display: grid; place-items: center; color: var(--faint); flex: none; font-size: 13px; }
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 12px 0;
   font-family: 'Manrope', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
@@ -262,22 +411,73 @@ onMounted(load)
   outline: none;
 }
 
-.add input::placeholder { color: var(--faint); font-weight: 600; }
-.add input:focus { border-color: var(--green); }
+.search input::placeholder { color: var(--faint); font-weight: 600; }
 
-.add-btn {
-  width: 46px;
+.search-x {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
   border: none;
-  border-radius: 13px;
-  background: var(--green);
-  color: #fff;
+  background: var(--wash-2);
+  color: var(--muted);
   display: grid;
   place-items: center;
   cursor: pointer;
   flex: none;
 }
 
-.add-btn:disabled { opacity: .4; cursor: default; }
+.dice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--gold-text);
+  border-radius: 13px;
+  padding: 0 14px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  flex: none;
+}
+
+/* ----------------------------------------------------------- suggestions */
+
+.sug-list { max-height: 320px; overflow-y: auto; }
+
+.slim { padding: 18px 0; }
+
+button.t-row.sug { cursor: pointer; }
+
+.sug-letter {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--wash-2);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  flex: none;
+}
+
+.sug-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex: none;
+}
+
+.sug-mark.on { background: var(--green); border-color: var(--green); color: #fff; }
 
 /* ------------------------------------------------------------------ rows */
 
@@ -317,4 +517,66 @@ onMounted(load)
   flex: none;
   padding: 4px;
 }
+
+/* --------------------------------------------------------- random dialog */
+
+.lvl-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--faint);
+  margin: 16px 0 8px;
+}
+
+.lvls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+.lvl {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 9px 6px;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+}
+
+.lvl b { display: block; font-size: 12px; font-weight: 800; }
+.lvl i { display: block; font-style: normal; font-size: 10px; font-weight: 700; color: var(--faint); margin-top: 1px; }
+
+.lvl.on { border: 1.5px solid var(--green); background: var(--wash-3); }
+.lvl.on b { color: var(--green-dark); }
+
+.counts { display: flex; gap: 8px; }
+
+.cnt {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 10px 0;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cnt.on { border: 1.5px solid var(--green); background: var(--wash-3); color: var(--green-dark); }
+
+.cnt-input {
+  width: 64px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 10px 0;
+  text-align: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  outline: none;
+  flex: none;
+}
+
+.cnt-input:focus { border-color: var(--green); }
 </style>

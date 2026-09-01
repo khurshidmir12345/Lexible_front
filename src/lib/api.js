@@ -60,6 +60,13 @@ export const api = {
     deletePath: (id) => request('DELETE', `/teacher/paths/${id}`),
     addStage: (pathId, title) => request('POST', `/teacher/paths/${pathId}/stages`, { title }),
     stage: (id) => request('GET', `/teacher/stages/${id}`),
+    randomWords: (count, level, excludeIds = []) =>
+      request(
+        'GET',
+        `/teacher/words/random?count=${count}` +
+          (level ? `&level=${level}` : '') +
+          (excludeIds.length ? `&exclude=${excludeIds.join(',')}` : ''),
+      ),
     saveStage: (id, title, words, type) =>
       request('PATCH', `/teacher/stages/${id}`, { title, words, ...(type ? { type } : {}) }),
     deleteStage: (id) => request('DELETE', `/teacher/stages/${id}`),
