@@ -78,8 +78,15 @@ export const telegram = {
 
   initData: tg?.initData ?? '',
 
-  /** `?startapp=duel_ABC123` arrives here. */
-  startParam: tg?.initDataUnsafe?.start_param ?? null,
+  /**
+   * `?startapp=duel_ABC123` arrives here. Telegram's own start_param first;
+   * failing that, the page URL — a chat-path invite opens the app through a
+   * web_app button whose URL carries the code itself.
+   */
+  startParam: tg?.initDataUnsafe?.start_param
+    ?? new URLSearchParams(window.location.search).get('startapp')
+    ?? new URLSearchParams(window.location.search).get('tgWebAppStartParam')
+    ?? null,
 
   user: tg?.initDataUnsafe?.user ?? null,
 

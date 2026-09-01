@@ -73,7 +73,7 @@ onBeforeUnmount(stopPolling)
       <div v-if="error" class="lobby-error">{{ error }}</div>
 
       <template v-else-if="duel">
-        <div class="link">{{ duel.invite_link.replace('https://', '') }}</div>
+        <button class="link" @click="copy">{{ duel.invite_link.replace('https://', '') }}</button>
 
         <div class="lobby-actions">
           <button class="btn btn-primary" @click="copy">Nusxalash</button>
@@ -139,6 +139,9 @@ onBeforeUnmount(stopPolling)
   border: 1.5px dashed #C3CEC5; border-radius: 14px; padding: 14px;
   text-align: center; font-size: 14px; font-weight: 700;
   color: #2E7CF6; letter-spacing: .3px; word-break: break-all;
+  /* It is a button now — a tap copies the link. */
+  width: 100%; background: none; cursor: pointer;
+  font-family: 'Manrope', system-ui, sans-serif;
 }
 
 .lobby-actions { display: flex; gap: 10px; }
