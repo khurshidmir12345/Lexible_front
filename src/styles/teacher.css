@@ -393,6 +393,12 @@ button.t-row {
     color: var(--green-dark);
 }
 
+/* A stage still short of the minimum it needs to be played. */
+.t-pill.amber {
+    background: #FBF3DE;
+    color: #8A6412;
+}
+
 /* -------------------------------------------------------------------- code */
 
 .t-code {

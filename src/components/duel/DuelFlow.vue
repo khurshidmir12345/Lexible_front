@@ -53,22 +53,33 @@ function go() {
   watchRival()
 }
 
+/** The rival may still be answering; keep watching until they land. */
+function watchFinish() {
+  stopPolling()
+  poller = setInterval(async () => {
+    try {
+      const { duel: latest } = await api.duel(props.code)
+      duel.value = latest
+      if (latest.status === 'finished') stopPolling()
+    } catch {
+      /* a dropped poll is not worth interrupting the result for */
+    }
+  }, POLL)
+}
+
+function showResult(state) {
+  stopPolling()
+  duel.value = state
+  stage.value = 'result'
+  if (state.status !== 'finished') watchFinish()
+}
+
 async function onFinished(result) {
   stopPolling()
 
   try {
     const { duel: state } = await api.finishDuel(props.code, result.correct, result.duration_ms)
-    duel.value = state
-    stage.value = 'result'
-
-    // The rival may still be answering; keep watching until they land.
-    if (state.status !== 'finished') {
-      poller = setInterval(async () => {
-        const { duel: latest } = await api.duel(props.code)
-        duel.value = latest
-        if (latest.status === 'finished') stopPolling()
-      }, POLL)
-    }
+    showResult(state)
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -85,7 +96,7 @@ onBeforeUnmount(stopPolling)
 </script>
 
 <template>
-  <DuelLobby v-if="stage === 'lobby'" :code="code" @close="close" @play="begin" />
+  <DuelLobby v-if="stage === 'lobby'" :code="code" @close="close" @play="begin" @result="showResult" />
 
   <DuelCountdown
     v-else-if="stage === 'countdown'"

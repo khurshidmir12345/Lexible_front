@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import Modal from '../ui/Modal.vue'
+import WordIcon from '../word/WordIcon.vue'
 import { TeacherIcon } from '../../lib/icons2'
 import { LEVELS } from '../../lib/languages'
 import { api } from '../../lib/api'
@@ -30,6 +31,9 @@ const results = ref([])
 const searching = ref(false)
 const searchField = ref(null)
 let debounce = null
+let inflight = null
+
+const minWords = window.LEXIBLE?.minWords ?? 5
 let skipSearch = false
 
 /* random batch */
@@ -42,6 +46,16 @@ const COUNTS = [5, 10, 15, 20]
 
 const chosenIds = computed(() => new Set(words.value.map((w) => w.id)))
 
+/** What a chosen row keeps: the pair plus its picture, so the list stays visual. */
+const pickFields = (w) => ({
+  id: w.id,
+  en: w.en,
+  translation: w.translation ?? '',
+  emoji: w.emoji ?? null,
+  icon: w.icon ?? null,
+  icon_large: w.icon_large ?? null,
+})
+
 async function load() {
   loading.value = true
 
@@ -50,7 +64,7 @@ async function load() {
     stage.value = data
     title.value = data.title ?? ''
     isExam.value = data.type === 'exam'
-    words.value = data.words.map((w) => ({ id: w.id, en: w.en, translation: w.translation ?? '' }))
+    words.value = data.words.map(pickFields)
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -66,24 +80,30 @@ async function search() {
     return
   }
 
+  // Only the latest keystroke's answer may reach the list.
+  inflight?.abort()
+  const controller = (inflight = new AbortController())
+
   searching.value = true
   try {
-    results.value = (await api.searchWords(q)).words
+    const { words } = await api.searchWords(q, controller.signal)
+    if (controller !== inflight) return
+    results.value = words
   } catch (error) {
-    store.toast(error.message)
+    if (error.name !== 'AbortError') store.toast(error.message)
   } finally {
-    searching.value = false
+    if (controller === inflight) searching.value = false
   }
 }
 
-// A miss triggers a dictionary API call server-side, so let typing settle.
+// Let typing settle a little; stale answers are aborted, so this can be short.
 watch(query, () => {
   clearTimeout(debounce)
   if (skipSearch) {
     skipSearch = false
     return
   }
-  debounce = setTimeout(search, 350)
+  debounce = setTimeout(search, 200)
 })
 
 /**
@@ -98,7 +118,7 @@ function pick(word) {
     return
   }
 
-  words.value.push({ id: word.id, en: word.en, translation: word.translation ?? '' })
+  words.value.push(pickFields(word))
   telegram.haptic()
 
   if (query.value) {
@@ -137,7 +157,7 @@ async function addRandom() {
       return
     }
 
-    words.value.push(...batch.map((w) => ({ id: w.id, en: w.en, translation: w.translation ?? '' })))
+    words.value.push(...batch.map(pickFields))
     randomOpen.value = false
     telegram.notify('success')
     store.toast(`🎲 ${batch.length} ta soʼz qoʼshildi`)
@@ -149,8 +169,8 @@ async function addRandom() {
 }
 
 async function save() {
-  if (!words.value.length) {
-    store.toast('Kamida bitta soʼz tanlang')
+  if (words.value.length < minWords) {
+    store.toast(`Kamida ${minWords} ta soʼz tanlang — yana ${minWords - words.value.length} ta`)
     return
   }
 
@@ -186,7 +206,9 @@ onMounted(load)
         <h1>{{ stage ? `${stage.position}-bosqich` : 'Bosqich' }}{{ title ? ` · ${title}` : '' }}</h1>
         <p>{{ stage?.path?.title }}{{ stage?.path?.subtitle ? ` · ${stage.path.subtitle}` : '' }}</p>
       </div>
-      <span class="t-pill green">{{ words.length }} soʼz</span>
+      <span class="t-pill" :class="words.length < minWords ? 'amber' : 'green'">
+        {{ words.length < minWords ? `${words.length}/${minWords}` : words.length }} soʼz
+      </span>
     </header>
 
     <div class="t-body">
@@ -240,7 +262,7 @@ onMounted(load)
             @mousedown.prevent
             @click="pick(word)"
           >
-            <span class="sug-letter">{{ word.en.charAt(0).toLowerCase() }}</span>
+            <WordIcon :word="word" :size="36" />
             <span class="t-row-text">
               <b>{{ word.en }}</b>
               <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}{{ word.level ? ' · ' + word.level : '' }}</i>
@@ -253,9 +275,9 @@ onMounted(load)
 
         <!-- Chosen words -->
         <div v-if="words.length" class="t-rows">
-          <div v-for="(word, index) in words" :key="word.id" class="t-row">
-            <span class="idx">{{ index + 1 }}</span>
-            <span class="pair"><b>{{ word.en }}</b> — {{ word.translation }}</span>
+          <div v-for="(word, index) in words" :key="word.id" class="t-row chosen">
+            <WordIcon :word="word" :size="44" />
+            <span class="pair"><i class="num">{{ index + 1 }}</i><b>{{ word.en }}</b> — {{ word.translation }}</span>
             <button class="del" aria-label="Oʼchirish" @click="drop(index)">
               <span v-html="TeacherIcon.trash"></span>
             </button>
@@ -265,14 +287,14 @@ onMounted(load)
         <div v-else-if="!query.trim()" class="t-empty">
           <span class="t-empty-ic" v-html="TeacherIcon.board"></span>
           <h3>Lugʼat boʼsh</h3>
-          <p>Bazadan soʼz qidiring yoki 🎲 Random bilan darajaga mos soʼzlar oling. Soni cheklanmagan.</p>
+          <p>Bazadan soʼz qidiring yoki 🎲 Random bilan darajaga mos soʼzlar oling. Kamida {{ minWords }} ta, yuqori chegara yoʼq.</p>
         </div>
       </template>
     </div>
 
     <div class="t-foot">
-      <button class="btn btn-primary" :disabled="saving || loading || !words.length" @click="save">
-        {{ saving ? 'Saqlanmoqda…' : 'Saqlash' }}
+      <button class="btn btn-primary" :disabled="saving || loading || words.length < minWords" @click="save">
+        {{ saving ? 'Saqlanmoqda…' : words.length < minWords ? `Yana ${minWords - words.length} ta soʼz kerak` : 'Saqlash' }}
       </button>
     </div>
 
@@ -450,20 +472,6 @@ onMounted(load)
 
 button.t-row.sug { cursor: pointer; }
 
-.sug-letter {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--wash-2);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  font-family: 'Sora', sans-serif;
-  font-size: 12.5px;
-  font-weight: 700;
-  flex: none;
-}
-
 .sug-mark {
   width: 26px;
   height: 26px;
@@ -481,18 +489,15 @@ button.t-row.sug { cursor: pointer; }
 
 /* ------------------------------------------------------------------ rows */
 
-.idx {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--wash-2);
-  color: var(--faint);
-  display: grid;
-  place-items: center;
+.t-row.chosen .pair .num {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 6px;
   font-family: 'Sora', sans-serif;
   font-size: 11px;
   font-weight: 700;
-  flex: none;
+  font-style: normal;
+  color: var(--faint);
 }
 
 .pair {

@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
+import WordIcon from '../word/WordIcon.vue'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
@@ -18,16 +19,25 @@ const inputEl = ref(null)
 const selected = ref(new Set(props.chosen))
 
 let debounce = null
+let inflight = null
 
+/**
+ * Only the latest keystroke's answer may reach the list: the previous
+ * request is aborted, so a slow "bea" can never overwrite a fast "beaut".
+ */
 async function search() {
+  inflight?.abort()
+  const controller = (inflight = new AbortController())
+
   loading.value = true
   try {
-    const { words } = await api.searchWords(query.value.trim())
+    const { words } = await api.searchWords(query.value.trim(), controller.signal)
+    if (controller !== inflight) return
     results.value = words
   } catch (error) {
-    store.toast(error.message)
+    if (error.name !== 'AbortError') store.toast(error.message)
   } finally {
-    loading.value = false
+    if (controller === inflight) loading.value = false
   }
 }
 
@@ -35,14 +45,14 @@ async function search() {
 // the list stays put and sibling words ("name", "named"…) are still a tap away.
 let skipSearch = false
 
-// A miss triggers a dictionary API call server-side, so let typing settle.
+// Let typing settle a little; stale answers are aborted, so this can be short.
 watch(query, () => {
   clearTimeout(debounce)
   if (skipSearch) {
     skipSearch = false
     return
   }
-  debounce = setTimeout(search, 350)
+  debounce = setTimeout(search, 200)
 })
 
 async function toggle(word) {
@@ -79,8 +89,6 @@ function clearQuery() {
   inputEl.value?.focus()
 }
 
-const initial = (word) => word.en.charAt(0).toLowerCase()
-
 onMounted(() => {
   search()
   setTimeout(() => inputEl.value?.focus(), 60)
@@ -114,7 +122,7 @@ onMounted(() => {
         @mousedown.prevent
         @click="toggle(word)"
       >
-        <span class="tile-letter">{{ initial(word) }}</span>
+        <WordIcon :word="word" :size="38" />
         <span class="sug-text">
           <b>{{ word.en }}</b>
           <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}</i>
@@ -213,20 +221,6 @@ onMounted(() => {
   font-family: 'Manrope', sans-serif;
 }
 
-.tile-letter {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: var(--wash-2);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  font-family: 'Sora', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
 .sug-text {
   flex: 1;
 }
@@ -259,8 +253,9 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.sug.picked .tile-letter {
+.sug.picked .w-ic {
   background: var(--green-soft);
+  border-color: var(--green-pale);
   color: var(--green-dark);
 }
 

@@ -68,13 +68,16 @@ async function finishExam(result) {
 }
 
 /**
- * A friend arrives through `t.me/bot/game?startapp=duel_ABC123`, a whole class
+ * A friend arrives through `t.me/bot?startapp=duel_ABC123`, a whole class
  * through `?startapp=comp_VS8K3J`. Telegram hands that payload to the page, so
  * joining is the first thing that happens after the app boots.
  */
 async function acceptInvite() {
   const param = telegram.startParam
   if (!param) return
+
+  // Whatever happens next, the same link is not replayed on a remount.
+  telegram.clearStartParam()
 
   if (param.startsWith('comp_')) {
     // The competition screen does the joining itself, so it can show why a

@@ -59,6 +59,15 @@ const matchResults = ref([])
 const spellInput = ref(null)
 const startedAt = Date.now()
 
+/**
+ * My side of the duel scoreboard, counted here as answers land so it moves
+ * on the tap rather than on the next poll. The server's tally (which the
+ * rival sees) catches up within a poll interval; the larger of the two is
+ * shown so the number never steps backwards.
+ */
+const myScore = ref(0)
+const myShown = computed(() => Math.max(myScore.value, props.duel?.me?.score ?? 0))
+
 /** The word behind the flag button, or null while no sheet is open. */
 const reporting = ref(null)
 
@@ -186,6 +195,14 @@ async function send(answer) {
       response_ms: 0,
     })
     bankCoins(res?.coins_earned ?? 0)
+
+    if (props.duel && res) {
+      // A matching round is graded per pair, exactly as the server does it.
+      myScore.value += Array.isArray(answer)
+        ? answer.filter((pair) => pair.correct).length
+        : (res.correct ? 1 : 0)
+    }
+
     return res
   } catch (error) {
     store.toast(error.message)
@@ -448,14 +465,15 @@ onBeforeUnmount(stopSpeech)
       <div v-if="duel" class="duel-bar">
         <div class="score-pill">
           <span>Siz</span>
-          <b class="mine">{{ duel.me.score }}</b>
+          <b class="mine">{{ myShown }}</b>
           <i></i>
           <b class="theirs">{{ duel.rival?.score ?? 0 }}</b>
           <span>{{ duel.rival?.name ?? 'Doʼst' }}</span>
         </div>
         <div class="duel-track"><span :style="{ width: progress + '%' }"></span></div>
         <p v-if="duel.rival && !duel.rival.finished" class="rival-note">
-          {{ duel.rival.name }} javob bermoqda…
+          {{ duel.rival.name }}
+          {{ duel.rival.started ? `javob bermoqda — ${duel.rival.answered}/${duel.rival.total}` : 'hali boshlamadi…' }}
         </p>
         <p v-else-if="duel.rival?.finished" class="rival-note">
           {{ duel.rival.name }} tugatdi — shoshiling!
@@ -483,7 +501,11 @@ onBeforeUnmount(stopSpeech)
 
         <!-- FLASHCARD -->
         <template v-if="current.type === 'card'">
-          <button class="flash" :class="{ 't-flip': flipped }" @click="flipped = !flipped">
+          <button class="flash" :class="{ 't-flip': flipped, 'has-pic': current.icon_large || current.icon || current.emoji }" @click="flipped = !flipped">
+            <span v-if="current.icon_large || current.icon" class="flash-pic">
+              <img :src="current.icon_large || current.icon" alt="" draggable="false" />
+            </span>
+            <span v-else-if="current.emoji" class="flash-pic flash-em">{{ current.emoji }}</span>
             <span v-if="current.pos" class="pos">{{ current.pos }}</span>
             <span class="t-flash-word v-num">{{ flipped ? current.translation : current.en }}</span>
             <span v-if="current.transcription && !flipped" class="phon">[ {{ current.transcription.replace(/\//g, '') }} ]</span>
@@ -562,7 +584,13 @@ onBeforeUnmount(stopSpeech)
               :disabled="checked"
               @click="selected = option.key"
             >
-              <span class="pic-em">{{ option.emoji || '📘' }}</span>
+              <span class="pic-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7" /></svg>
+              </span>
+              <span class="pic-box">
+                <img v-if="option.icon_large || option.icon" class="pic-img" :src="option.icon_large || option.icon" alt="" draggable="false" />
+                <span v-else class="pic-em">{{ option.emoji || '📘' }}</span>
+              </span>
               <span class="pic-cap">{{ option.label }}</span>
             </button>
           </div>
@@ -1030,6 +1058,38 @@ onBeforeUnmount(stopSpeech)
   pointer-events: none;
 }
 
+/* the word's 3D icon leads the card; the flip keeps it so the pair reads as one */
+.flash.has-pic {
+  padding-top: 24px;
+  gap: 8px;
+}
+
+.flash-pic {
+  width: 148px;
+  height: 148px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+}
+
+.flash-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 22px rgba(17, 40, 28, 0.16));
+  transition: transform 0.25s ease;
+}
+
+.flash.t-flip .flash-pic img {
+  transform: scale(0.92);
+}
+
+.flash-em {
+  font-size: 92px;
+  line-height: 1;
+}
+
 /* pictures */
 
 .pics {
@@ -1039,20 +1099,81 @@ onBeforeUnmount(stopSpeech)
 }
 
 .pic {
+  position: relative;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 18px 10px;
-  background: none;
+  border-radius: 18px;
+  padding: 14px 12px;
+  background: var(--card);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   font-family: 'Manrope', sans-serif;
+  transition: transform 0.12s ease;
+}
+
+.pic:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ts-06: the green ✓ badge in the corner of the picked tile */
+.pic-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.pic.sel .pic-check,
+.pic.right .pic-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pic.wrong .pic-check {
+  opacity: 1;
+  transform: scale(1);
+  background: var(--red);
+}
+
+/* ts-06: the picture well — washed when idle, white with a green edge once chosen */
+.pic-box {
+  width: 100%;
+  height: 112px;
+  border-radius: 14px;
+  background: var(--wash-2);
+  border: 1px solid transparent;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.pic.sel .pic-box,
+.pic.right .pic-box {
+  background: var(--card);
+  border-color: var(--green-pale);
+}
+
+.pic-img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 14px rgba(17, 40, 28, 0.14));
 }
 
 .pic-em {
-  font-size: 40px;
+  font-size: 52px;
   line-height: 1;
 }
 

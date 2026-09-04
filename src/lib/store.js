@@ -23,12 +23,25 @@ export const store = {
   state: readonly(state),
 
   async boot() {
+    let note = null
+
     try {
       const { user } = await api.me()
       state.user = user
       this.setDark(user.dark_mode)
 
-      if (user.onboarded) {
+      // A duel or class-game link is a student's business. A teacher who
+      // taps one — or someone who has not picked a side yet — is moved to
+      // the student app before anything renders, so the invite lands in the
+      // game instead of on the teacher dashboard. Switching back is one tap
+      // in the profile.
+      if (telegram.isInvite() && (user.role === 'teacher' || !user.role_chosen)) {
+        const wasTeacher = user.role === 'teacher'
+        await this.setRole('student')
+        if (wasTeacher) note = 'Taklif uchun Oʼquvchi rejimiga oʼtildi'
+      }
+
+      if (state.user.onboarded) {
         await this.refreshRoad()
         await this.refreshGroups()
       }
@@ -37,6 +50,8 @@ export const store = {
     } finally {
       state.ready = true
     }
+
+    if (note) this.toast(note)
   },
 
   /** Re-reads the account; the shell in App.vue is derived from it. */

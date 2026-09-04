@@ -5,7 +5,13 @@ import { telegram } from '../../lib/telegram'
 const props = defineProps({ duel: Object })
 const emit = defineEmits(['close', 'rematch'])
 
+/** My side is in; the rival's is not — no verdict yet. */
+const pending = computed(() => props.duel?.status !== 'finished')
+
 const outcome = computed(() => {
+  if (pending.value) {
+    return { emoji: '⏳', title: 'Kutilmoqda…', tint: 'draw' }
+  }
   if (props.duel?.winner === 'me') {
     return { emoji: '🏆', title: 'Gʼalaba!', tint: 'win' }
   }
@@ -17,6 +23,12 @@ const outcome = computed(() => {
 
 const subtitle = computed(() => {
   const rival = props.duel?.rival?.name ?? 'Doʼst'
+  if (pending.value) {
+    const side = props.duel?.rival
+    return side?.started
+      ? `${rival} hali javob bermoqda — ${side.answered}/${side.total}`
+      : `${rival} hali boshlamadi`
+  }
   if (props.duel?.winner === 'me') return `${rival} ustidan gʼalaba qozondingiz`
   if (props.duel?.winner === 'rival') return `${rival} bu safar tezroq boʼldi`
   return 'Ball ham, vaqt ham teng'
@@ -52,6 +64,7 @@ function share() {
       </div>
 
       <div v-if="duel?.winner === 'me'" class="reward">+{{ duel.reward }} tanga</div>
+      <div v-else-if="pending" class="reward soft">Natija raqib tugagach chiqadi</div>
     </div>
 
     <div class="res-foot">
@@ -108,6 +121,8 @@ function share() {
   border-radius: var(--r-pill); padding: 7px 16px;
   font-size: 13px; font-weight: 800;
 }
+
+.reward.soft { background: var(--wash-2); color: var(--muted); }
 
 .res-foot {
   display: flex; gap: 10px;

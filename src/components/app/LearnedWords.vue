@@ -62,7 +62,10 @@ onMounted(load)
 
       <div v-else-if="words.length" class="lw-card">
         <div v-for="word in words" :key="word.id" class="lw-row" @click="detail = word">
-          <span class="lw-letter">{{ word.en.charAt(0).toLowerCase() }}</span>
+          <span class="lw-letter">
+            <img v-if="word.icon" :src="word.icon" alt="" draggable="false" />
+            <template v-else>{{ word.emoji || word.en.charAt(0).toLowerCase() }}</template>
+          </span>
           <span class="lw-text">
             <b>{{ word.en }}</b>
             <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}</i>
@@ -203,6 +206,13 @@ onMounted(load)
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.lw-letter img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .lw-text {

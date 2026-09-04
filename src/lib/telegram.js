@@ -88,6 +88,20 @@ export const telegram = {
     ?? new URLSearchParams(window.location.search).get('tgWebAppStartParam')
     ?? null,
 
+  /** True while the app was opened through a duel or class-game invite. */
+  isInvite() {
+    return /^(duel|comp)_[A-Za-z0-9]+$/.test(this.startParam ?? '')
+  },
+
+  /**
+   * An invite is acted on exactly once. The shell that consumed it clears it,
+   * so a later remount (a role switch, a settings change) does not join the
+   * same duel a second time.
+   */
+  clearStartParam() {
+    this.startParam = null
+  },
+
   user: tg?.initDataUnsafe?.user ?? null,
 
   colorScheme: tg?.colorScheme ?? 'light',
@@ -111,6 +125,17 @@ export const telegram = {
       tg.BackButton.offClick(handler)
       tg.BackButton.hide()
     }
+  },
+
+  /**
+   * A direct link into the Mini App. The bot runs a *Main* Mini App, so the
+   * form is `t.me/<bot>?startapp=<param>` — no short name in the path. With
+   * one (`t.me/<bot>/game?...`) Telegram looks for a separately registered
+   * app and, finding none, opens the chat instead of the game.
+   */
+  miniAppLink(startParam) {
+    const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
+    return `https://t.me/${bot}?startapp=${startParam}`
   },
 
   share(url, text = '') {

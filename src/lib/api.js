@@ -10,9 +10,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request(method, path, body) {
+async function request(method, path, body, { signal } = {}) {
   const response = await fetch(`${BASE}${path}`, {
     method,
+    signal,
     headers: {
       Accept: 'application/json',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -124,7 +125,9 @@ export const api = {
   addWord: (id, wordId) => request('POST', `/categories/${id}/words`, { word_id: wordId }),
   removeWord: (id, wordId) => request('DELETE', `/categories/${id}/words/${wordId}`),
 
-  searchWords: (query) => request('GET', `/words/search?q=${encodeURIComponent(query)}`),
+  /** `signal` lets a caller drop a search the next keystroke has outdated. */
+  searchWords: (query, signal) =>
+    request('GET', `/words/search?q=${encodeURIComponent(query)}`, null, { signal }),
   reportWord: (data) => request('POST', '/words/report', data),
   learned: (filter = 'learned') => request('GET', `/learned?filter=${filter}`),
 
@@ -134,6 +137,7 @@ export const api = {
   playDuel: (code) => request('POST', `/duels/${code}/play`),
   finishDuel: (code, score, durationMs) =>
     request('POST', `/duels/${code}/finish`, { score, duration_ms: durationMs }),
+  cancelDuel: (code) => request('DELETE', `/duels/${code}`),
 
   // Competitions — the teacher drives the lobby, students follow the link.
   competition: (code) => request('GET', `/competitions/${code}`),

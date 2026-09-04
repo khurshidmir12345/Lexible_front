@@ -19,10 +19,15 @@ const props = defineProps({
 const emit = defineEmits(['close', 'edit', 'results', 'play', 'deleted'])
 
 const busy = ref(false)
+const minWords = window.LEXIBLE?.minWords ?? 5
 
 async function play() {
   if (!props.stage.words_count) {
     store.toast('Avval bosqichga soʼz qoʼshing')
+    return
+  }
+  if (props.stage.words_count < minWords) {
+    store.toast(`Bellashuv uchun kamida ${minWords} ta soʼz kerak — hozir ${props.stage.words_count} ta`)
     return
   }
 

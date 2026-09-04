@@ -5,7 +5,7 @@ import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const props = defineProps({ code: String })
-const emit = defineEmits(['close', 'play'])
+const emit = defineEmits(['close', 'play', 'result'])
 
 const duel = ref(null)
 const error = ref(null)
@@ -18,10 +18,30 @@ function stopPolling() {
   poller = null
 }
 
+const CLOSED = {
+  cancelled: 'Bu duel bekor qilingan.',
+  expired: 'Taklif muddati tugagan. Yangi duel oching.',
+}
+
 async function refresh() {
   try {
     const { duel: state } = await api.duel(props.code)
     duel.value = state
+
+    // A lobby the host walked out of, or one nobody joined in time.
+    if (CLOSED[state.status]) {
+      error.value = CLOSED[state.status]
+      stopPolling()
+      return
+    }
+
+    // Reopening the app after playing lands straight on the result — never
+    // back on the questions, which would count every answer twice.
+    if (state.status === 'finished' || state.me?.finished) {
+      stopPolling()
+      emit('result', state)
+      return
+    }
 
     // The moment a rival appears, both sides drop into the countdown.
     if (state.rival) {
@@ -32,6 +52,17 @@ async function refresh() {
     error.value = e.message
     stopPolling()
   }
+}
+
+/** Leaving an empty lobby as the host retires the link with it. */
+function leave() {
+  stopPolling()
+
+  if (duel.value?.is_host && duel.value?.status === 'waiting') {
+    api.cancelDuel(props.code).catch(() => {})
+  }
+
+  emit('close')
 }
 
 function copy() {
@@ -54,7 +85,7 @@ onBeforeUnmount(stopPolling)
 <template>
   <div class="overlay show lobby">
     <header class="lobby-head">
-      <button class="lobby-x" @click="$emit('close')">
+      <button class="lobby-x" @click="leave">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>

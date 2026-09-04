@@ -16,7 +16,10 @@ watch(() => props.word, () => (reporting.value = false))
   <div class="dialog-wrap" :class="{ open: Boolean(word) }">
     <div v-if="word" class="dialog">
       <div class="head">
-        <span class="letter">{{ word.en.charAt(0).toLowerCase() }}</span>
+        <span class="letter">
+          <img v-if="word.icon_large || word.icon" :src="word.icon_large || word.icon" alt="" draggable="false" />
+          <template v-else>{{ word.emoji || word.en.charAt(0).toLowerCase() }}</template>
+        </span>
         <div style="flex: 1">
           <div class="word">{{ word.en }}</div>
           <div v-if="word.transcription" class="phon">[ {{ word.transcription.replace(/\//g, '') }} ]</div>
@@ -89,6 +92,13 @@ watch(() => props.word, () => (reporting.value = false))
   font-size: 18px;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.letter img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .word {

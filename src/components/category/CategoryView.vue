@@ -34,6 +34,10 @@ const duelCode = ref(null)
 const duelIntent = ref(false)
 
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
+const minWords = window.LEXIBLE?.minWords ?? 5
+
+/** How many words short of a playable stage this is; 0 once it can start. */
+const short = computed(() => Math.max(0, minWords - words.value.length))
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
 
 /** One column per exercise type; the exact percent sits above each bar. */
@@ -197,7 +201,7 @@ async function onTestFinished(result) {
   store.refreshDashboard().catch(() => {})
 }
 
-/** The 3D icon when we have one, else the emoji, else the first letter. */
+/** Fallback for a word without a 3D icon: the emoji, else the first letter. */
 const initial = (word) => word.emoji || word.en.charAt(0).toLowerCase()
 
 /**
@@ -235,7 +239,13 @@ onMounted(load)
           </span>
         </div>
 
-        <div class="actions">
+        <div v-if="short" class="min-note">
+          <b>Oʼyin uchun kamida {{ minWords }} ta soʼz kerak</b>
+          <i v-if="editable">Yana {{ short }} ta qoʼshing — har savolda 4 ta variant boʼladi</i>
+          <i v-else>Ustoz bosqichni toʼldirgach ochiladi</i>
+        </div>
+
+        <div v-else class="actions">
           <button class="btn btn-primary play" @click="startTest">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5v15l12-7.5z" /></svg>
             Boshlash
@@ -261,7 +271,10 @@ onMounted(load)
 
         <div class="word-card">
           <div v-for="word in words" :key="word.id" class="word-row">
-            <span class="tile-letter" @click="detailWord = word">{{ initial(word) }}</span>
+            <span class="tile-letter" @click="detailWord = word">
+              <img v-if="word.icon" :src="word.icon" alt="" draggable="false" />
+              <template v-else>{{ initial(word) }}</template>
+            </span>
             <span class="word-text" @click="detailWord = word">
               <b>{{ word.en }}</b>
               <i>{{ word.translation ?? '—' }}{{ word.pos ? ' · ' + word.pos : '' }}</i>
@@ -419,6 +432,19 @@ onMounted(load)
   gap: 10px;
 }
 
+.min-note {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #FBF3DE;
+  border: 1px solid #F0DDA8;
+}
+
+.min-note b { font-size: 13.5px; font-weight: 800; color: #8A6412; }
+.min-note i { font-style: normal; font-size: 12px; font-weight: 600; color: #A8842C; }
+
 .play {
   flex: 1;
   display: flex;
@@ -564,6 +590,13 @@ onMounted(load)
   font-weight: 700;
   flex-shrink: 0;
   cursor: pointer;
+}
+
+.tile-letter img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .word-text {
