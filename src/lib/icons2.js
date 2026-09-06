@@ -19,6 +19,7 @@ export const RowIcon = {
   gift: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="17" height="11" rx="2.5"/><path d="M3.5 13h17M12 9v11"/><path d="M12 9S10.5 4.5 8 5s-.5 4 4 4zM12 9s1.5-4.5 4-4 .5 4-4 4z"/></svg>`,
   chevron: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg>`,
   spark: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 5.3L19.5 10l-5.3 1.7L12 17l-2.2-5.3L4.5 10l5.3-1.7z"/></svg>`,
+  bell: bellIcon,
 }
 
 /** Hero icons on the onboarding steps — 24px, green, 1.8 stroke. */

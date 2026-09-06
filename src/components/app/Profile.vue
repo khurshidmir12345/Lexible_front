@@ -58,6 +58,7 @@ async function save() {
 }
 
 const toggleDark = () => store.updateSettings({ dark_mode: !user.value.dark_mode })
+const toggleReminders = () => store.updateSettings({ reminders_enabled: !user.value.reminders_enabled })
 
 /** The way back to the teacher side — App.vue swaps shells off `user.role`. */
 const switchingRole = ref(false)
@@ -151,6 +152,12 @@ const daysLabel = computed(() => {
         <span class="v-row-v">{{ user.reminder_at ?? 'tanlanmagan' }}</span>
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
+
+      <div class="v-row">
+        <span class="v-row-ic" v-html="RowIcon.bell"></span>
+        <span class="v-row-t">Bot eslatmalari</span>
+        <button class="v-switch" :class="{ on: user.reminders_enabled !== false }" @click="toggleReminders"><i></i></button>
+      </div>
 
       <div class="v-row">
         <span class="v-row-ic" v-html="RowIcon.moon"></span>
