@@ -269,13 +269,11 @@ watch(activePath, focusCurrent)
                 <i>{{ formatDate(node.date) }}</i>
               </span>
 
-              <span class="ring">
-                <!-- completed -->
-                <svg v-if="node.status === 'completed'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 13l5 5L20 7" />
-                </svg>
+              <!-- A finished node says so once, in the pill at the foot of
+                   the card; a second tick in a ring above it read as clutter. -->
+              <span v-if="node.status !== 'completed'" class="ring">
                 <!-- locked -->
-                <svg v-else-if="node.status === 'locked'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <svg v-if="node.status === 'locked'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                   <rect x="5" y="11" width="14" height="9" rx="2.5" />
                   <path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" />
                 </svg>
