@@ -20,8 +20,9 @@ defineEmits(['close'])
 const learnedAt = window.LEXIBLE?.mastery?.learned_at ?? 70
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
 
+// The flashcard is not here: flipping a card is not a graded answer, so it
+// never moves a word. Five exercises, twenty percent each.
 const NAMES = {
-  card: 'Karta',
   uz2en: 'Test · {lang} → ing',
   en2uz: 'Test · ing → {lang}',
   spell: 'Imlo',

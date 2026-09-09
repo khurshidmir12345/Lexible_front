@@ -40,10 +40,12 @@ const minWords = window.LEXIBLE?.minWords ?? 5
 const short = computed(() => Math.max(0, minWords - words.value.length))
 const midAt = window.LEXIBLE?.mastery?.mid_at ?? 40
 
-/** One column per exercise type; the exact percent sits above each bar. */
+/**
+ * One column per scored exercise; the exact percent sits above each bar.
+ * The flashcard is left out — it has no right answer to score.
+ */
 const typeRows = computed(() =>
   [
-    ['card', 'Karta'],
     ['uz2en', 'U→E'],
     ['en2uz', 'E→U'],
     ['spell', 'Imlo'],
