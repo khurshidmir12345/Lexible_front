@@ -42,13 +42,15 @@ export const api = {
   updateMe: (data) => request('PATCH', '/me', data),
   chooseRole: (role) => request('POST', '/me/role', { role }),
 
-  // Accepts a group code (5A-KITOB) or a teacher ID (TCHR-2381). When the ID
+  // Accepts a group code (LX-7K3M9Q) or a teacher ID (TCHR-2381). When the ID
   // covers several classes the reply is {status:'choose', groups:[…]} and the
   // student re-calls with the group they picked.
   joinGroup: (code, groupId = null) =>
     request('POST', '/groups/join', { code, ...(groupId ? { group_id: groupId } : {}) }),
   myGroups: () => request('GET', '/groups/mine'),
   leaveGroup: (id) => request('DELETE', `/groups/${id}/leave`),
+  /** The board as a picture; `mode: 'chat'` has the bot send it to the player instead. */
+  shareCompetition: (code, mode = 'share') => request('POST', `/competitions/${code}/share`, { mode }),
 
   teacher: {
     dashboard: () => request('GET', '/teacher/dashboard'),
@@ -56,8 +58,9 @@ export const api = {
 
     // Paths and their stages
     paths: () => request('GET', '/teacher/paths'),
-    createPath: (title, subtitle) => request('POST', '/teacher/paths', { title, subtitle }),
-    renamePath: (id, title, subtitle) => request('PATCH', `/teacher/paths/${id}`, { title, subtitle }),
+    createPath: (title, subtitle, types = null) => request('POST', '/teacher/paths', { title, subtitle, types }),
+    renamePath: (id, title, subtitle, types = null) =>
+      request('PATCH', `/teacher/paths/${id}`, { title, subtitle, types }),
     deletePath: (id) => request('DELETE', `/teacher/paths/${id}`),
     addStage: (pathId, title) => request('POST', `/teacher/paths/${pathId}/stages`, { title }),
     stage: (id) => request('GET', `/teacher/stages/${id}`),

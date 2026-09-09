@@ -15,7 +15,7 @@ const classes = ref(null)
 
 /**
  * The teacher hands out one of two things and the student cannot be expected
- * to know which: a group code off the board ("5A-KITOB") or the teacher's own
+ * to know which: a group code off the board ("LX-7K3M9Q") or the teacher's own
  * ID from their profile ("TCHR-2381"). Both are accepted here.
  */
 async function submit(groupId = null) {
@@ -74,12 +74,12 @@ function invite() {
       <!-- Entering the code -->
       <template v-else-if="step === 'code'">
         <h2>Ustoz kodi</h2>
-        <p>Guruh kodi (<b>5A-KITOB</b>) yoki ustoz ID (<b>TCHR-2381</b>) — ikkalasi ham boʼladi.</p>
+        <p>Guruh kodi (<b>LX-7K3M9Q</b>) yoki ustoz ID (<b>TCHR-2381</b>) — ikkalasi ham boʼladi.</p>
 
         <input
           v-model="code"
           class="code-input"
-          placeholder="5A-KITOB"
+          placeholder="LX-7K3M9Q"
           autocapitalize="characters"
           autocomplete="off"
           @keyup.enter="submit()"

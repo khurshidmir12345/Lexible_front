@@ -138,6 +138,20 @@ export const telegram = {
     return `https://t.me/${bot}?startapp=${startParam}`
   },
 
+  /** Bot API 8.0 — a prepared message can be dropped into any chat from inside the app. */
+  canShareMessage: Boolean(tg?.shareMessage) && Boolean(tg?.isVersionAtLeast?.('8.0')),
+
+  /** Opens Telegram's chat picker for a prepared message; resolves with whether it was sent. */
+  shareMessage(id) {
+    return new Promise((resolve) => {
+      try {
+        tg.shareMessage(id, (sent) => resolve(Boolean(sent)))
+      } catch {
+        resolve(false)
+      }
+    })
+  },
+
   share(url, text = '') {
     const link = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
     tg?.openTelegramLink ? tg.openTelegramLink(link) : window.open(link, '_blank')

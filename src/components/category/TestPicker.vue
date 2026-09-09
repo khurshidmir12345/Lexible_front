@@ -1,17 +1,27 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { TEST_TYPES } from '../../lib/icons'
 import { languageShort } from '../../lib/languages'
 import { store } from '../../lib/store'
 
-defineProps({ open: Boolean })
+const props = defineProps({
+  open: Boolean,
+  /** The exercises a teacher left switched on for this path; null means all. */
+  allowed: { type: Array, default: null },
+})
 const emit = defineEmits(['close', 'start', 'duel'])
 
-// All six on by default, the way the artboard shows it.
-const chosen = ref(new Set(TEST_TYPES.map((t) => t.key)))
+/** Only the games this stage may play — a teacher's path can switch some off. */
+const offered = computed(() =>
+  props.allowed?.length ? TEST_TYPES.filter((t) => props.allowed.includes(t.key)) : TEST_TYPES,
+)
+
+// Everything offered is on by default, the way the artboard shows it.
+const chosen = ref(new Set(offered.value.map((t) => t.key)))
+watch(offered, (list) => { chosen.value = new Set(list.map((t) => t.key)) })
 
 const types = computed(() =>
-  TEST_TYPES.map((type) => ({
+  offered.value.map((type) => ({
     ...type,
     label: type.name.replace('{lang}', languageShort(store.state.user?.native_lang)),
   })),
@@ -23,7 +33,7 @@ function toggle(key) {
 }
 
 const selectedKeys = computed(() =>
-  TEST_TYPES.filter((t) => chosen.value.has(t.key)).map((t) => t.key),
+  offered.value.filter((t) => chosen.value.has(t.key)).map((t) => t.key),
 )
 </script>
 

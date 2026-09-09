@@ -9,6 +9,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import Modal from '../ui/Modal.vue'
+import { TEST_TYPES } from '../../lib/icons'
+import { languageShort } from '../../lib/languages'
 import StageMenu from './StageMenu.vue'
 import { canvasHeight, connectors, layout, trinkets, INSET, TOP } from '../../lib/roadmap'
 import { TeacherIcon } from '../../lib/icons2'
@@ -36,7 +38,31 @@ const switching = ref(false)
 const creating = ref(false)
 const renaming = ref(false)
 const menuStage = ref(null)
-const draft = ref({ title: '', subtitle: '' })
+const draft = ref({ title: '', subtitle: '', types: allTypes() })
+
+/** Every exercise on — a new path starts with nothing switched off. */
+function allTypes() {
+  return new Set(TEST_TYPES.map((t) => t.key))
+}
+
+/** The exercise rows of the sheet: label, icon, and whether it is on. */
+const exerciseRows = computed(() =>
+  TEST_TYPES.map((type) => ({
+    ...type,
+    label: type.name.replace('{lang}', languageShort(store.state.user?.native_lang)),
+    on: draft.value.types.has(type.key),
+  })),
+)
+
+function toggleType(key) {
+  const next = new Set(draft.value.types)
+  next.has(key) ? next.delete(key) : next.add(key)
+  if (!next.size) return   // a path with no games would be unplayable
+  draft.value.types = next
+  telegram.haptic()
+}
+
+const chosenTypes = () => TEST_TYPES.filter((t) => draft.value.types.has(t.key)).map((t) => t.key)
 
 const current = computed(() => paths.value.find((p) => p.id === activeId.value) ?? null)
 
@@ -93,10 +119,10 @@ async function createPath() {
   if (title.length < 2) return
 
   try {
-    const { path } = await api.teacher.createPath(title, draft.value.subtitle.trim() || null)
+    const { path } = await api.teacher.createPath(title, draft.value.subtitle.trim() || null, chosenTypes())
     creating.value = false
     switching.value = false
-    draft.value = { title: '', subtitle: '' }
+    draft.value = { title: '', subtitle: '', types: allTypes() }
     await load()
     activeId.value = path.id
     store.toast('✅ Yoʼl yaratildi')
@@ -110,7 +136,7 @@ async function renamePath() {
   if (title.length < 2 || !current.value) return
 
   try {
-    await api.teacher.renamePath(current.value.id, title, draft.value.subtitle.trim() || null)
+    await api.teacher.renamePath(current.value.id, title, draft.value.subtitle.trim() || null, chosenTypes())
     renaming.value = false
     await load()
     store.toast('✅ Saqlandi')
@@ -159,12 +185,16 @@ function openStage(stage) {
 }
 
 function startRename() {
-  draft.value = { title: current.value?.title ?? '', subtitle: current.value?.subtitle ?? '' }
+  draft.value = {
+    title: current.value?.title ?? '',
+    subtitle: current.value?.subtitle ?? '',
+    types: current.value?.types?.length ? new Set(current.value.types) : allTypes(),
+  }
   renaming.value = true
 }
 
 function startCreate() {
-  draft.value = { title: '', subtitle: '' }
+  draft.value = { title: '', subtitle: '', types: allTypes() }
   creating.value = true
 }
 
@@ -356,6 +386,15 @@ defineExpose({ load })
         <label class="t-field field"><span>IZOH</span>
           <input v-model="draft.subtitle" placeholder="Boshlangʼich daraja" />
         </label>
+        <div class="t-field field"><span>OʼYIN TURLARI</span>
+          <div class="ex-grid">
+            <button v-for="row in exerciseRows" :key="row.key" type="button" class="ex-toggle" :class="{ on: row.on }" @click="toggleType(row.key)">
+              <span class="ex-ic" :style="{ background: row.bg, color: row.color }" v-html="row.icon"></span>
+              <b>{{ row.label }}</b>
+              <i class="ex-check">{{ row.on ? '✓' : '' }}</i>
+            </button>
+          </div>
+        </div>
         <template #actions>
           <button class="btn btn-soft" @click="creating = false">Bekor</button>
           <button class="btn btn-primary" :disabled="draft.title.trim().length < 2" @click="createPath">
@@ -371,6 +410,15 @@ defineExpose({ load })
         <label class="t-field field"><span>IZOH</span>
           <input v-model="draft.subtitle" />
         </label>
+        <div class="t-field field"><span>OʼYIN TURLARI</span>
+          <div class="ex-grid">
+            <button v-for="row in exerciseRows" :key="row.key" type="button" class="ex-toggle" :class="{ on: row.on }" @click="toggleType(row.key)">
+              <span class="ex-ic" :style="{ background: row.bg, color: row.color }" v-html="row.icon"></span>
+              <b>{{ row.label }}</b>
+              <i class="ex-check">{{ row.on ? '✓' : '' }}</i>
+            </button>
+          </div>
+        </div>
         <button class="danger-row" @click="deletePath">
           <span v-html="TeacherIcon.trash"></span> Yoʼlni oʼchirish
         </button>
@@ -609,6 +657,20 @@ defineExpose({ load })
 }
 
 /* --------------------------------------------------------------- sheets */
+
+/* Exercise toggles: one row per game, ticked when the class may play it. */
+.ex-grid { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ex-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-md);
+  border: 1.5px solid var(--line); background: var(--card);
+  color: var(--ink); font-family: inherit; text-align: left; cursor: pointer;
+}
+.ex-toggle b { flex: 1; font-size: 13px; font-weight: 700; }
+.ex-toggle.on { border-color: var(--green); background: var(--green-soft, #E9F7EF); }
+.ex-ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.ex-ic :deep(svg) { width: 14px; height: 14px; }
+.ex-check { width: 18px; text-align: center; font-style: normal; font-weight: 800; color: var(--green); }
 
 .picker { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
 

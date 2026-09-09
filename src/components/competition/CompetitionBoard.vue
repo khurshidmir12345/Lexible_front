@@ -5,8 +5,10 @@
  * Shown to both sides: the teacher gets "Yana oʼtkazish", a student gets a
  * highlighted row and a plain close.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { api } from '../../lib/api'
 import { TeacherIcon } from '../../lib/icons2'
+import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
 
 const props = defineProps({
@@ -34,15 +36,35 @@ const rest = computed(() => (props.board?.standings ?? []).slice(3))
 /** Classmates may still be answering — the podium is provisional until then. */
 const live = computed(() => props.board?.status !== 'finished')
 
-function share() {
-  const winner = props.board?.podium?.[0]
-  if (!winner) return
+const sharing = ref(false)
 
-  telegram.share(
-    '',
-    `«${props.board.group}» ${props.board.stage}-bosqich musobaqasi — ` +
-    `gʼolib ${winner.name} (${winner.score}/${winner.total})`,
-  )
+/**
+ * The board goes out as a picture. On a current client Telegram opens its
+ * chat picker with the card ready to send; an older one gets the card from
+ * the bot in their own chat, to forward from there.
+ */
+async function share() {
+  if (sharing.value || !props.board?.code) return
+  sharing.value = true
+  telegram.haptic()
+
+  try {
+    if (telegram.canShareMessage) {
+      const { prepared_message_id } = await api.shareCompetition(props.board.code)
+      if (prepared_message_id) {
+        const sent = await telegram.shareMessage(prepared_message_id)
+        if (sent) store.toast('✅ Natija yuborildi')
+        return
+      }
+    }
+
+    const { sent } = await api.shareCompetition(props.board.code, 'chat')
+    store.toast(sent ? '📨 Rasm botga yuborildi — guruhga forward qiling' : 'Rasmni yuborib boʼlmadi')
+  } catch (error) {
+    store.toast(error.message)
+  } finally {
+    sharing.value = false
+  }
 }
 </script>
 
@@ -94,7 +116,9 @@ function share() {
     </div>
 
     <div class="t-foot">
-      <button class="btn btn-outline" @click="share">Ulashish</button>
+      <button class="btn btn-outline" :disabled="sharing" @click="share">
+        {{ sharing ? 'Tayyorlanmoqda…' : 'Guruhga yuborish' }}
+      </button>
       <button class="btn btn-primary" @click="emit('again')">
         {{ meId ? 'Yopish' : 'Yana oʼtkazish' }}
       </button>

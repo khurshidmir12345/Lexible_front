@@ -334,6 +334,7 @@ onMounted(load)
 
     <TestPicker
       :open="picker"
+      :allowed="category?.types ?? null"
       @close="() => { picker = false; duelIntent = false }"
       @start="(types) => (duelIntent ? startDuel(types) : begin(types))"
       @duel="startDuel"
