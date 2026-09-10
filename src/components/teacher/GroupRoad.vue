@@ -5,7 +5,7 @@
  * UT-05.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { canvasHeight, connectors, layout, trinkets, INSET } from '../../lib/roadmap'
+import { canvasHeight, connectors, layout, forest, INSET } from '../../lib/roadmap'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -29,7 +29,7 @@ onBeforeUnmount(() => clearTimeout(hintTimer))
 
 const nodes = computed(() => layout(data.value?.stages ?? [], { top: 40 }))
 const links = computed(() => connectors(nodes.value))
-const decor = computed(() => trinkets(nodes.value))
+const decor = computed(() => forest(nodes.value))
 const height = computed(() => canvasHeight(nodes.value.length, { top: 40 }))
 
 /** The first card that is neither finished nor untouched gets the flag. */
@@ -78,27 +78,25 @@ onMounted(load)
 
     <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
-    <div v-else-if="nodes.length" class="canvas">
+    <div v-else-if="nodes.length" class="canvas forest-canvas">
       <div class="inner" :style="{ height: `${height}px` }">
         <svg class="links" :viewBox="`0 0 390 ${height}`" preserveAspectRatio="none" fill="none">
-          <path
-            v-for="(d, i) in links"
-            :key="i"
-            :d="d"
-            stroke="#D9D6C8"
-            stroke-width="4.5"
-            stroke-linecap="round"
-            stroke-dasharray="8 12"
-          />
+          <path v-for="(d, i) in links" :key="`b${i}`" :d="d" class="trail-base" />
+          <path v-for="(d, i) in links" :key="`d${i}`" :d="d" class="trail-dash" />
         </svg>
 
         <img
           v-for="item in decor"
           :key="item.key"
-          class="trinket"
-          :src="item.img"
+          class="sticker"
+          :class="{ flip: item.flip }"
+          :src="item.src"
           alt=""
-          :style="{ top: `${item.top}px`, left: `${item.left}px` }"
+          loading="lazy"
+          decoding="async"
+          :width="item.size"
+          :height="item.size"
+          :style="{ top: `${item.top}px`, left: `${item.left}px`, width: `${item.size}px`, height: `${item.size}px` }"
         />
 
         <template v-for="stage in nodes" :key="stage.id">
@@ -163,14 +161,6 @@ onMounted(load)
 
 .links { position: absolute; inset: 0; width: 100%; display: block; }
 
-.trinket {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .18));
-  pointer-events: none;
-}
 
 .flag {
   position: absolute;

@@ -5,6 +5,7 @@ import GroupLeaderboard from '../group/GroupLeaderboard.vue'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 import { telegram } from '../../lib/telegram'
+import { forest, FOOT } from '../../lib/roadmap'
 
 const emit = defineEmits(['open', 'exam'])
 
@@ -40,9 +41,6 @@ const isGroupPath = computed(() => currentPath.value?.kind === 'group')
 
 /** OQ-03 — the class is joined and approved, but this month is not paid. */
 const awaitingPayment = computed(() => Boolean(currentPath.value?.payment_required))
-
-/** TN-02 draws the map on near-black with a much darker dashed line. */
-const linkColour = computed(() => (store.state.dark ? '#313D34' : '#D9D6C8'))
 
 const money = (value) => String(value ?? 0).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')
 
@@ -80,7 +78,10 @@ const nodes = computed(() =>
     })),
 )
 
-const canvasHeight = computed(() => TOP + nodes.value.length * GAP + 40)
+const canvasHeight = computed(() => TOP + nodes.value.length * GAP + FOOT)
+
+/** Trees, finds and animals beside the cards — see lib/roadmap.js. */
+const scenery = computed(() => forest(nodes.value, { width: WIDTH }))
 
 /**
  * An S-curve between two node centres, the way the artboard draws it: the
@@ -223,19 +224,27 @@ watch(activePath, focusCurrent)
       <span class="group-cta">Guruh statistikasi ›</span>
     </button>
 
-    <div ref="canvasEl" class="canvas" :class="{ shut: awaitingPayment }">
+    <div ref="canvasEl" class="canvas forest-canvas" :class="{ shut: awaitingPayment }">
       <div class="v-inner" :style="{ height: canvasHeight + 'px' }">
         <svg class="links" :viewBox="`0 0 ${WIDTH} ${canvasHeight}`" preserveAspectRatio="none" fill="none">
-          <path
-            v-for="(d, i) in connectors"
-            :key="i"
-            :d="d"
-            :stroke="linkColour"
-            stroke-width="4.5"
-            stroke-linecap="round"
-            stroke-dasharray="8 12"
-          />
+          <!-- The footpath: a sandy band, then its dashed centre line on top. -->
+          <path v-for="(d, i) in connectors" :key="`b${i}`" :d="d" class="trail-base" />
+          <path v-for="(d, i) in connectors" :key="`d${i}`" :d="d" class="trail-dash" />
         </svg>
+
+        <img
+          v-for="item in scenery"
+          :key="item.key"
+          class="sticker"
+          :class="{ flip: item.flip }"
+          :src="item.src"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          :width="item.size"
+          :height="item.size"
+          :style="{ top: `${item.top}px`, left: `${item.left}px`, width: `${item.size}px`, height: `${item.size}px` }"
+        />
 
         <template v-for="node in nodes" :key="node.id">
           <span v-if="node.status === 'in_progress' && node.title" class="here" :style="{ top: `${node.top - 26}px`, [node.side === 'left' ? 'left' : 'right']: '14px' }">
@@ -577,7 +586,6 @@ watch(activePath, focusCurrent)
 .canvas {
   flex: 1;
   overflow-y: auto;
-  background: #F3F1EA;
 }
 
 .v-inner {

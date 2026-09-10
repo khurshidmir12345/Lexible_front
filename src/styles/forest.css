@@ -1,0 +1,50 @@
+/*
+ * The forest the roads run through — shared by the student map (AS-02) and the
+ * two teacher maps (UT-01, UT-04b). Grass underfoot, a sandy trail between the
+ * cards, and 3D scenery from the icon library placed by lib/roadmap.js.
+ */
+
+.forest-canvas {
+  background:
+    radial-gradient(ellipse 60% 40% at 18% 28%, rgba(255, 255, 255, .38), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 82% 62%, rgba(255, 255, 255, .28), transparent 70%),
+    radial-gradient(ellipse 45% 30% at 30% 85%, rgba(190, 220, 170, .55), transparent 70%),
+    linear-gradient(180deg, #E4F0DA 0%, #D9E9CC 50%, #DCEBD0 100%);
+}
+
+.app.dark .forest-canvas {
+  background:
+    radial-gradient(ellipse 60% 40% at 18% 28%, rgba(255, 255, 255, .04), transparent 70%),
+    linear-gradient(180deg, #17221A 0%, #142016 100%);
+}
+
+/* The trail: a sandy band with a dashed centre line. */
+.trail-base {
+  stroke: #E8DCC0;
+  stroke-width: 18;
+  stroke-linecap: round;
+}
+
+.trail-dash {
+  stroke: #FBF5E6;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 11;
+}
+
+.app.dark .trail-base { stroke: #2E3128; }
+.app.dark .trail-dash { stroke: #4E5244; }
+
+/* Scenery. Fixed boxes so nothing reflows when a picture arrives. */
+.sticker {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 5px 4px rgba(22, 32, 26, .22));
+}
+
+.sticker.flip { transform: scaleX(-1); }
+
+.app.dark .sticker { filter: drop-shadow(0 5px 4px rgba(0, 0, 0, .5)) brightness(.9); }

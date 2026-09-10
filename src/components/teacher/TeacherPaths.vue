@@ -12,7 +12,7 @@ import Modal from '../ui/Modal.vue'
 import { TEST_TYPES } from '../../lib/icons'
 import { languageShort } from '../../lib/languages'
 import StageMenu from './StageMenu.vue'
-import { canvasHeight, connectors, layout, trinkets, INSET, TOP } from '../../lib/roadmap'
+import { canvasHeight, connectors, layout, forest, INSET, TOP } from '../../lib/roadmap'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -89,7 +89,7 @@ const nodes = computed(() => {
   return layout(marked, { top: TOP })
 })
 const links = computed(() => connectors(nodes.value))
-const decor = computed(() => trinkets(nodes.value))
+const decor = computed(() => forest(nodes.value))
 const height = computed(() => canvasHeight(nodes.value.length))
 
 async function load() {
@@ -247,27 +247,25 @@ defineExpose({ load })
     <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
     <!-- The map itself — the same road the students see. -->
-    <div v-else-if="current" class="canvas">
+    <div v-else-if="current" class="canvas forest-canvas">
       <div class="inner" :style="{ height: `${height}px` }">
         <svg class="links" :viewBox="`0 0 390 ${height}`" preserveAspectRatio="none" fill="none">
-          <path
-            v-for="(d, i) in links"
-            :key="i"
-            :d="d"
-            class="road"
-            stroke-width="4.5"
-            stroke-linecap="round"
-            stroke-dasharray="8 12"
-          />
+          <path v-for="(d, i) in links" :key="`b${i}`" :d="d" class="trail-base" />
+          <path v-for="(d, i) in links" :key="`d${i}`" :d="d" class="trail-dash" />
         </svg>
 
         <img
           v-for="item in decor"
           :key="item.key"
-          class="trinket"
-          :src="item.img"
+          class="sticker"
+          :class="{ flip: item.flip }"
+          :src="item.src"
           alt=""
-          :style="{ top: `${item.top}px`, left: `${item.left}px` }"
+          loading="lazy"
+          decoding="async"
+          :width="item.size"
+          :height="item.size"
+          :style="{ top: `${item.top}px`, left: `${item.left}px`, width: `${item.size}px`, height: `${item.size}px` }"
         />
 
         <template v-for="stage in nodes" :key="stage.id">
@@ -488,12 +486,6 @@ defineExpose({ load })
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* The teacher's map sits on a milky-yellow parchment, not office white. */
-  background:
-    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, .55), transparent 42%),
-    radial-gradient(circle at 82% 55%, rgba(255, 233, 170, .35), transparent 45%),
-    #FAF3DC;
-  position: relative;
 }
 
 .app.dark .canvas { background: #141A15; }
@@ -509,17 +501,7 @@ defineExpose({ load })
 
 .links { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-.road { stroke: #DFD3A8; }
-.app.dark .road { stroke: #33402F; }
 
-.trinket {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .18));
-  pointer-events: none;
-}
 
 /* The node cards are drawn exactly the way the student map draws them. */
 .node {
