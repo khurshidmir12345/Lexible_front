@@ -75,7 +75,7 @@ async function share() {
       <h1>{{ live ? 'Natijalar toʼplanmoqda' : 'Musobaqa yakunlandi' }}</h1>
       <p>
         <template v-if="board.stage">{{ board.stage }}-bosqich · </template>
-        {{ board.questions }} savol · {{ board.participants }} ishtirokchi
+        {{ board.questions }} soʼz · {{ board.participants }} ishtirokchi
       </p>
     </header>
 
@@ -89,6 +89,7 @@ async function share() {
           </span>
           <b class="who">{{ slot.player.name.split(' ')[0] }}</b>
           <i class="score">{{ slot.player.score }} toʼgʼri · {{ slot.player.accuracy }}%</i>
+          <i class="time v-num">⏱ {{ slot.player.finished ? slot.player.duration : '—' }}</i>
           <span class="block v-num">{{ slot.place }}</span>
         </div>
       </section>
@@ -106,8 +107,11 @@ async function share() {
         </span>
         <span class="t-row-text">
           <b>{{ row.name }}</b>
-          <i v-if="row.finished">{{ row.score }} toʼgʼri · {{ row.duration }}</i>
-          <i v-else>Tugatmadi</i>
+          <i v-if="row.finished">
+            {{ row.score }} toʼgʼri · ⏱ {{ row.duration }}<template v-if="row.timed_out"> · vaqt tugadi</template>
+          </i>
+          <i v-else-if="row.played">{{ row.score }} toʼgʼri · oʼynamoqda</i>
+          <i v-else>Oʼynamadi</i>
         </span>
         <b class="pct v-num">{{ row.finished ? `${row.accuracy}%` : '—' }}</b>
       </div>
@@ -116,9 +120,11 @@ async function share() {
     </div>
 
     <div class="t-foot">
-      <button class="btn btn-outline" :disabled="sharing" @click="share">
+      <!-- The picture is the final board; it is not offered while it moves. -->
+      <button v-if="!live" class="btn btn-outline" :disabled="sharing" @click="share">
         {{ sharing ? 'Tayyorlanmoqda…' : 'Guruhga yuborish' }}
       </button>
+      <span v-else class="pending-note">Rasm musobaqa yakunlangach ulashiladi</span>
       <button class="btn btn-primary" @click="emit('again')">
         {{ meId ? 'Yopish' : 'Yana oʼtkazish' }}
       </button>
@@ -199,6 +205,7 @@ async function share() {
 
 .who { font-size: 12.5px; font-weight: 800; }
 .score { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--muted); text-align: center; }
+.time { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--faint); margin-top: -3px; }
 
 .block {
   width: 100%;
@@ -253,5 +260,14 @@ async function share() {
   border: 1px solid var(--line);
   background: none;
   color: var(--muted);
+}
+
+.pending-note {
+  flex: 1;
+  align-self: center;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--faint);
 }
 </style>

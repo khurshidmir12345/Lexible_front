@@ -11,7 +11,10 @@ import GroupRoad from './GroupRoad.vue'
 import StageMenu from './StageMenu.vue'
 import StageEditor from './StageEditor.vue'
 import StageResults from './StageResults.vue'
+import StudentHistory from './StudentHistory.vue'
+import CompetitionHistory from './CompetitionHistory.vue'
 import CompetitionLobby from '../competition/CompetitionLobby.vue'
+import CompetitionSetup from '../competition/CompetitionSetup.vue'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -47,6 +50,11 @@ function stageSaved() {
   emit('changed')
 }
 const lobby = ref(null)
+const setupStage = ref(null)
+const historyStudent = ref(null)
+const showGames = ref(false)
+/** Lobbies and rounds still running in this class: a way back in. */
+const liveGames = ref([])
 const draft = ref({ title: '', subtitle: '', badge: '' })
 
 const group = computed(() => data.value?.group ?? null)
@@ -54,8 +62,18 @@ const stages = computed(() => group.value?.path?.stages ?? [])
 
 const tone = (score) => (score >= 70 ? 'good' : score >= 40 ? 'warn' : 'bad')
 
+async function loadGames() {
+  try {
+    const { competitions } = await api.teacher.competitions(props.groupId)
+    liveGames.value = competitions.filter((c) => c.live)
+  } catch {
+    liveGames.value = []
+  }
+}
+
 async function load() {
   loading.value = true
+  loadGames()
 
   try {
     data.value = await api.teacher.group(props.groupId, stageFilter.value)
@@ -177,8 +195,11 @@ async function removeStudent(row) {
   }
 }
 
-/** A game over the stage currently filtered by, or the first one. */
-async function play() {
+/**
+ * A game over the stage currently filtered by, or the first one. The
+ * exercises and the clock are asked on the setup sheet first.
+ */
+function play() {
   const stageId = stageFilter.value ?? stages.value[0]?.id
 
   if (!stageId) {
@@ -187,13 +208,12 @@ async function play() {
   }
 
   telegram.haptic()
+  setupStage.value = stages.value.find((s) => s.id === stageId) ?? { id: stageId }
+}
 
-  try {
-    const { competition } = await api.teacher.openCompetition(props.groupId, stageId)
-    lobby.value = competition
-  } catch (error) {
-    store.toast(error.message)
-  }
+function openLobby(competition) {
+  setupStage.value = null
+  lobby.value = competition
 }
 
 function copyCode() {
@@ -298,8 +318,26 @@ onMounted(load)
           {{ stageFilter ? 'Shu bosqichda oʼyin boshlash' : 'Oʼyin boshlash' }}
         </button>
 
+        <!-- A round the teacher walked away from is still there -->
+        <button v-for="game in liveGames" :key="game.id" class="live-game" @click="lobby = game">
+          <span class="live-dot"></span>
+          <span class="live-text">
+            <b>{{ game.status === 'playing' ? 'Oʼyin davom etmoqda' : 'Lobbi ochiq' }}<template v-if="game.stage"> · {{ game.stage }}-bosqich</template></b>
+            <i>{{ game.participants }} oʼquvchi qoʼshilgan — qaytib kirish</i>
+          </span>
+          <span class="live-cta">Kirish</span>
+        </button>
+
+        <button class="games" @click="showGames = true">
+          <span v-html="TeacherIcon.trophy"></span>
+          Oʼyinlar tarixi
+          <span class="chev" v-html="TeacherIcon.chevron"></span>
+        </button>
+
+        <p class="under">oʼquvchini bossangiz — uning barcha natijalari</p>
+
         <div v-if="data.leaderboard.length" class="t-rows">
-          <div v-for="row in data.leaderboard" :key="row.id" class="t-row">
+          <div v-for="row in data.leaderboard" :key="row.id" class="t-row tap" @click="historyStudent = row">
             <span class="t-rank" :class="row.rank <= 3 ? `g${row.rank}` : ''">{{ row.rank }}</span>
             <span class="t-avatar">
               <img v-if="row.photo" :src="row.photo" alt="" />
@@ -310,7 +348,7 @@ onMounted(load)
               <i>🔥 {{ row.streak }} kun</i>
             </span>
             <b class="pct v-num" :class="tone(row.score)">{{ row.score }}%</b>
-            <button class="kick" aria-label="Chiqarish" @click="removeStudent(row)">
+            <button class="kick" aria-label="Chiqarish" @click.stop="removeStudent(row)">
               <span v-html="TeacherIcon.cross"></span>
             </button>
           </div>
@@ -339,6 +377,7 @@ onMounted(load)
       v-if="menuStage"
       :stage="menuStage"
       :group-id="groupId"
+      :allowed="group?.path?.types ?? null"
       @close="menuStage = null"
       @edit="(id) => { menuStage = null; editingStage = id }"
       @results="(id) => { menuStage = null; showRoad = false; resultsStage = id }"
@@ -361,12 +400,32 @@ onMounted(load)
       @competition="(c) => { resultsStage = null; lobby = c }"
     />
 
+    <CompetitionSetup
+      v-if="setupStage"
+      :stage-id="setupStage.id"
+      :group-id="groupId"
+      :allowed="group?.path?.types ?? null"
+      :stage-label="setupStage.position ? `${setupStage.position}-bosqich · ${setupStage.title || 'Nomsiz'}` : ''"
+      @close="setupStage = null"
+      @created="openLobby"
+      @resume="openLobby"
+    />
+
     <CompetitionLobby
       v-if="lobby"
       :competition-id="lobby.id"
       :group-id="groupId"
-      :stage-id="stageFilter ?? stages[0]?.id ?? null"
+      :stage-id="lobby.stage_id ?? stageFilter ?? stages[0]?.id ?? null"
       @close="() => { lobby = null; load() }"
+    />
+
+    <CompetitionHistory v-if="showGames" :group-id="groupId" @close="() => { showGames = false; loadGames() }" />
+
+    <StudentHistory
+      v-if="historyStudent"
+      :group-id="groupId"
+      :student-id="historyStudent.id"
+      @close="historyStudent = null"
     />
 
     <AddStudentSheet
@@ -515,6 +574,62 @@ onMounted(load)
 }
 
 .app.dark .play { background: var(--wash-2); color: var(--ink); }
+
+.live-game {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1.5px solid var(--blue);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--blue-soft);
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+  flex: none;
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(36, 128, 182, .45); }
+  60% { box-shadow: 0 0 0 7px rgba(36, 128, 182, 0); }
+}
+
+.live-text { flex: 1; min-width: 0; }
+.live-text b { display: block; font-size: 13.5px; font-weight: 800; color: var(--blue); }
+.live-text i { display: block; font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.live-cta { font-size: 12px; font-weight: 800; color: var(--blue); flex: none; }
+
+.games {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--card);
+  font-family: 'Manrope', sans-serif;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.games > span:first-child { color: var(--gold); display: grid; place-items: center; }
+.games .chev { margin-left: auto; color: var(--line-4); display: grid; place-items: center; }
+
+.t-row.tap { cursor: pointer; }
 
 .pct { font-size: 13px; font-weight: 700; flex: none; }
 .pct.good { color: var(--green); }

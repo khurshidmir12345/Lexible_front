@@ -16,6 +16,7 @@ import GroupDetail from './GroupDetail.vue'
 import StageEditor from './StageEditor.vue'
 import TeacherPricing from './TeacherPricing.vue'
 import CompetitionLobby from '../competition/CompetitionLobby.vue'
+import CompetitionHistory from './CompetitionHistory.vue'
 import Notifications from '../app/Notifications.vue'
 import { NavIcon, TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
@@ -27,6 +28,7 @@ const tab = ref('dash')
 const openGroupId = ref(null)
 const openStageId = ref(null)
 const lobby = ref(null)
+const showHistory = ref(false)
 const showPlan = ref(false)
 const showNotifications = ref(false)
 const unread = ref(0)
@@ -139,6 +141,8 @@ watch(tab, (next) => {
           @open-paths="switchTab('paths')"
           @open-group="(id) => { switchTab('groups'); openGroupId = id }"
           @open-plan="showPlan = true"
+          @open-competition="(c) => (lobby = { id: c.id, groupId: c.group_id, stageId: c.stage_id })"
+          @open-history="showHistory = true"
         />
       </section>
 
@@ -147,7 +151,7 @@ watch(tab, (next) => {
           ref="pathsRef"
           :active="tab === 'paths'"
           @edit-stage="(id) => (openStageId = id)"
-          @competition="(c) => (lobby = { id: c.id, groupId: null, stageId: null })"
+          @competition="(c) => (lobby = { id: c.id, groupId: c.group_id ?? null, stageId: c.stage_id ?? null })"
         />
       </section>
 
@@ -195,6 +199,8 @@ watch(tab, (next) => {
       :stage-id="lobby.stageId"
       @close="() => { lobby = null; refreshAll() }"
     />
+
+    <CompetitionHistory v-if="showHistory" @close="() => { showHistory = false; refreshAll() }" />
 
     <TeacherPricing v-if="showPlan" @close="() => { showPlan = false; refreshAll() }" />
 

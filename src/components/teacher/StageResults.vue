@@ -5,6 +5,7 @@
  * tells a teacher someone is behind, not what to reteach.
  */
 import { computed, ref, watch } from 'vue'
+import CompetitionSetup from '../competition/CompetitionSetup.vue'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
@@ -19,7 +20,7 @@ const emit = defineEmits(['close', 'competition'])
 
 const data = ref(null)
 const loading = ref(true)
-const starting = ref(false)
+const setup = ref(false)
 const active = ref(props.stageId)
 
 const siblings = computed(() => data.value?.siblings ?? [])
@@ -50,18 +51,10 @@ function go(stage) {
   telegram.haptic()
 }
 
-async function play() {
-  starting.value = true
-
-  try {
-    const { competition } = await api.teacher.openCompetition(props.groupId, active.value)
-    telegram.notify('success')
-    emit('competition', competition)
-  } catch (error) {
-    store.toast(error.message)
-  } finally {
-    starting.value = false
-  }
+/** Exercises and clock are chosen on the setup sheet; it opens the lobby. */
+function play() {
+  telegram.haptic()
+  setup.value = true
 }
 
 watch(active, load, { immediate: true })
@@ -94,9 +87,9 @@ watch(active, load, { immediate: true })
     </div>
 
     <div class="t-body">
-      <button class="play" :disabled="starting || !data?.stage?.words" @click="play">
+      <button class="play" :disabled="!data?.stage?.words" @click="play">
         <span class="t-vs">VS</span>
-        {{ starting ? 'Ochilmoqda…' : 'Shu bosqichda oʼyin boshlash' }}
+        Shu bosqichda oʼyin boshlash
       </button>
 
       <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
@@ -140,6 +133,16 @@ watch(active, load, { immediate: true })
         <p>Guruhga oʼquvchi qoʼshilgach natijalar shu yerda chiqadi.</p>
       </div>
     </div>
+
+    <CompetitionSetup
+      v-if="setup"
+      :stage-id="active"
+      :group-id="groupId"
+      :stage-label="`${data?.stage?.position}-bosqich · ${data?.stage?.title || 'Nomsiz'}`"
+      @close="setup = false"
+      @created="(c) => { setup = false; emit('competition', c) }"
+      @resume="(c) => { setup = false; emit('competition', c) }"
+    />
   </div>
 </template>
 

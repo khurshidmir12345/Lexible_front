@@ -7,11 +7,13 @@ import { TeacherIcon, badgeTint } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
 
-const emit = defineEmits(['open-groups', 'open-paths', 'open-group', 'open-plan'])
+const emit = defineEmits(['open-groups', 'open-paths', 'open-group', 'open-plan', 'open-competition', 'open-history'])
 
 const data = ref(null)
 const loading = ref(true)
 const failed = ref(null)
+/** Lobbies and rounds the teacher left running, anywhere. */
+const liveGames = ref([])
 
 async function load() {
   loading.value = true
@@ -23,6 +25,12 @@ async function load() {
     failed.value = error.message
   } finally {
     loading.value = false
+  }
+
+  try {
+    liveGames.value = (await api.teacher.competitions()).competitions.filter((c) => c.live)
+  } catch {
+    liveGames.value = []
   }
 }
 
@@ -87,6 +95,22 @@ defineExpose({ load })
           >{{ day }}</span>
         </div>
       </div>
+
+      <!-- A game left running: the class is waiting in it -->
+      <button
+        v-for="game in liveGames"
+        :key="game.id"
+        class="pending live"
+        @click="emit('open-competition', game)"
+      >
+        <span class="pending-ic live-ic"><span class="t-vs">VS</span></span>
+        <b>
+          {{ game.status === 'playing' ? 'Oʼyin davom etmoqda' : 'Lobbi ochiq' }} ·
+          {{ game.group ?? 'Ochiq oʼyin' }}<template v-if="game.stage"> · {{ game.stage }}-bosqich</template>
+          · {{ game.participants }} oʼquvchi
+        </b>
+        <span class="pending-cta">Kirish</span>
+      </button>
 
       <!-- Waiting approvals -->
       <button v-if="data.pending" class="pending" @click="emit('open-groups')">
@@ -161,6 +185,12 @@ defineExpose({ load })
           <span class="t-vs">VS</span> Oʼyin boshlash
         </button>
       </div>
+
+      <button class="history" @click="emit('open-history')">
+        <span v-html="TeacherIcon.trophy"></span>
+        Oʼyinlar tarixi — barcha natijalar
+        <span class="chev" v-html="TeacherIcon.chevron"></span>
+      </button>
 
       <div v-if="!data.groups" class="t-note plain">
         <span v-html="TeacherIcon.info"></span>
@@ -259,6 +289,31 @@ defineExpose({ load })
 
 .pending b { flex: 1; font-size: 13px; font-weight: 800; color: var(--gold-text); }
 .pending-cta { font-size: 12px; font-weight: 800; color: var(--gold); flex: none; }
+
+.pending.live { background: var(--blue-soft); border-color: var(--blue); }
+.pending.live b { color: var(--blue); }
+.pending.live .pending-cta { color: var(--blue); }
+.live-ic { color: var(--blue); }
+
+.history {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--card);
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.history > span:first-child { color: var(--gold); display: grid; place-items: center; }
+.history .chev { margin-left: auto; color: var(--line-4); display: grid; place-items: center; }
 
 /* -------------------------------------------------------------- group row */
 

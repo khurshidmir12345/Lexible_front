@@ -22,9 +22,18 @@ const POLL = window.LEXIBLE?.competition?.poll_interval_ms ?? 2000
 
 const meId = computed(() => store.state.user?.id ?? null)
 
+/** The round's clock as the runner wants it: an epoch timestamp, or null. */
+const deadline = computed(() => (state.value?.deadline_at ? Date.parse(state.value.deadline_at) : null))
+
 function stopPolling() {
   clearInterval(poller)
   poller = null
+}
+
+function cancelled() {
+  stopPolling()
+  store.toast('Ustoz bu musobaqani yopdi')
+  emit('close')
 }
 
 /**
@@ -38,10 +47,29 @@ function watchLobby() {
       const { competition } = await api.competition(props.code)
       state.value = competition
 
+      if (competition.status === 'cancelled') return cancelled()
       if (competition.status === 'playing' && stage.value === 'waiting') await begin()
       if (competition.status === 'finished') await showBoard()
     } catch {
       /* a dropped poll is not worth interrupting the wait for */
+    }
+  }, POLL)
+}
+
+/**
+ * While answering, the round can end under the player — the clock ran out,
+ * or the teacher closed it. The runner is taken down and the board shown
+ * the moment the server says so.
+ */
+function watchRound() {
+  stopPolling()
+  poller = setInterval(async () => {
+    try {
+      const { competition } = await api.competition(props.code)
+      state.value = competition
+      if (competition.status === 'finished' && stage.value === 'playing') await showBoard()
+    } catch {
+      /* same as above */
     }
   }, POLL)
 }
@@ -72,6 +100,7 @@ async function begin() {
     state.value = data.competition
     stage.value = 'playing'
     telegram.notify('success')
+    watchRound()
   } catch (error) {
     store.toast(error.message)
     watchLobby()
@@ -79,10 +108,13 @@ async function begin() {
 }
 
 async function onFinished(result) {
+  stopPolling()
+
   try {
     await api.finishCompetition(props.code, result.correct, result.total, result.duration_ms)
   } catch (error) {
-    store.toast(error.message)
+    // The clock may have handed the paper in first; the board still shows.
+    if (error.status !== 409) store.toast(error.message)
   }
 
   await showBoard()
@@ -123,7 +155,10 @@ onBeforeUnmount(stopPolling)
     <Mascot />
 
     <h1>Musobaqa</h1>
-    <p v-if="state">{{ state.group }} · {{ state.stage }}-bosqich · {{ state.questions }} savol</p>
+    <p v-if="state">
+      {{ state.group }}<template v-if="state.stage"> · {{ state.stage }}-bosqich</template> · {{ state.words ?? state.questions }} soʼz
+    </p>
+    <p v-if="state?.duration_minutes" class="cf-clock">⏱ Vaqt: {{ state.duration_minutes }} daqiqa</p>
 
     <div class="cf-pulse">
       <span></span><span></span><span></span>
@@ -141,6 +176,7 @@ onBeforeUnmount(stopPolling)
     v-else-if="stage === 'playing' && session"
     :session-id="session.id"
     :questions="session.questions"
+    :deadline="deadline"
     competition
     @finished="onFinished"
     @exit="close"
@@ -174,6 +210,15 @@ onBeforeUnmount(stopPolling)
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
+}
+
+.cf-clock {
+  margin-top: -6px;
+  color: var(--gold-text) !important;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
 }
 
 .cf-note {

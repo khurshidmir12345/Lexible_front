@@ -14,6 +14,12 @@ const props = defineProps({
   duel: { type: Object, default: null },
   /** A competition ends on the class board, not on the solo result screen. */
   competition: { type: Boolean, default: false },
+  /**
+   * When the round's clock runs out, as an epoch timestamp in ms. The
+   * remaining time is shown in the header and the paper is handed in on
+   * its own at zero — whatever is unanswered counts as wrong.
+   */
+  deadline: { type: Number, default: null },
 })
 
 const emit = defineEmits(['finished', 'exit'])
@@ -58,6 +64,31 @@ const matchResults = ref([])
 
 const spellInput = ref(null)
 const startedAt = Date.now()
+
+/* the round's clock */
+const remainingMs = ref(null)
+let clockTimer = null
+let handedIn = false
+
+const clock = computed(() => {
+  if (remainingMs.value === null) return null
+  const seconds = Math.max(0, Math.ceil(remainingMs.value / 1000))
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+})
+
+const clockLow = computed(() => remainingMs.value !== null && remainingMs.value <= 30000)
+
+function tickClock() {
+  if (!props.deadline) return
+  remainingMs.value = Math.max(0, props.deadline - Date.now())
+
+  if (remainingMs.value === 0 && !handedIn && !result.value) {
+    handedIn = true
+    clearInterval(clockTimer)
+    telegram.notify('warning')
+    finish()
+  }
+}
 
 /**
  * My side of the duel scoreboard, counted here as answers land so it moves
@@ -169,7 +200,7 @@ function resetQuestion() {
 }
 
 function advance(requeue = false) {
-  if (requeue && current.value && !retried.has(current.value.id)) {
+  if (requeue && repeats.value && current.value && !retried.has(current.value.id)) {
     retried.add(current.value.id)
     queue.value.push(current.value)
   }
@@ -329,12 +360,16 @@ const isDone = (side, index) => matchDone.value.has(`${side}${index}`)
 
 /* lifecycle */
 // A matching round is never replayed — every pair was already answered and
-// recorded once; only single-word questions earn their one repeat.
+// recorded once; only single-word questions earn their one repeat. In a
+// class game there is no repeat at all: one miss is one wrong answer.
+const repeats = computed(() => !props.competition)
+
 const continueAfter = () =>
-  advance(feedback.value && !feedback.value.correct && current.value?.type !== 'match')
+  advance(repeats.value && feedback.value && !feedback.value.correct && current.value?.type !== 'match')
 
 async function finish() {
   stopSpeech()
+  clearInterval(clockTimer)
 
   try {
     const elapsed = Date.now() - startedAt
@@ -381,8 +416,17 @@ const verdict = computed(() => {
 const ringColor = computed(() =>
   result.value?.is_exam && !result.value.exam_passed ? 'var(--red)' : 'var(--green)')
 
-onMounted(loadStage)
-onBeforeUnmount(stopSpeech)
+onMounted(() => {
+  loadStage()
+  if (props.deadline) {
+    tickClock()
+    clockTimer = setInterval(tickClock, 250)
+  }
+})
+onBeforeUnmount(() => {
+  stopSpeech()
+  clearInterval(clockTimer)
+})
 </script>
 
 <template>
@@ -488,6 +532,10 @@ onBeforeUnmount(stopSpeech)
         </button>
         <div class="track"><i :style="{ width: progress + '%' }"></i></div>
         <span class="count">{{ askedSoFar }}/{{ totalAsked }}</span>
+        <span v-if="clock" class="clock-chip v-num" :class="{ low: clockLow }">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg>
+          {{ clock }}
+        </span>
         <span class="coin-chip" :class="{ glow: coinGain }">
           <span class="ci" v-html="coinIcon"></span> <b :key="coinsEarned" class="v-num">{{ coinsEarned }}</b>
           <i v-if="coinGain" :key="coinGain.key" class="coin-fly">+{{ coinGain.amount }}</i>
@@ -687,7 +735,7 @@ onBeforeUnmount(stopSpeech)
             </div>
           </div>
         </div>
-        <p v-if="!feedback.correct && !feedback.match && current && !retried.has(current.id)" class="sheet-note">
+        <p v-if="repeats && !feedback.correct && !feedback.match && current && !retried.has(current.id)" class="sheet-note">
           Bu savol yana bir marta soʼraladi
         </p>
         <button class="btn" :class="feedback.correct ? 'btn-primary' : 'btn-dark'" @click="continueAfter">
@@ -782,6 +830,32 @@ onBeforeUnmount(stopSpeech)
 
 .coin-chip.glow {
   box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+.clock-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  flex: none;
+  min-width: 62px;
+  justify-content: center;
+}
+
+.clock-chip.low {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red-dark);
+  animation: clock-blink 1s infinite;
+}
+
+@keyframes clock-blink {
+  50% { opacity: .55; }
 }
 
 .coin-chip b {

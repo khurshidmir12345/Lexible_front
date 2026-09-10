@@ -96,17 +96,24 @@ export const api = {
     approve: (memberId) => request('POST', `/teacher/members/${memberId}/approve`),
     removeMember: (memberId) => request('DELETE', `/teacher/members/${memberId}`),
 
-    // Contests — with a class, or open to whoever has the link
-    openCompetition: (groupId, stageId) =>
-      request('POST', `/teacher/groups/${groupId}/competitions`, { path_stage_id: stageId }),
-    openStageCompetition: (stageId, groupId = null) =>
-      request('POST', `/teacher/stages/${stageId}/competitions`, { group_id: groupId }),
+    // Contests — with a class, or open to whoever has the link. `options`
+    // carries the teacher's pick: {types: [...], duration_minutes: 5}.
+    openCompetition: (groupId, stageId, options = {}) =>
+      request('POST', `/teacher/groups/${groupId}/competitions`, { path_stage_id: stageId, ...options }),
+    openStageCompetition: (stageId, groupId = null, options = {}) =>
+      request('POST', `/teacher/stages/${stageId}/competitions`, { group_id: groupId, ...options }),
     competitions: (groupId) =>
       request('GET', groupId ? `/teacher/groups/${groupId}/competitions` : '/teacher/competitions'),
     competition: (id) => request('GET', `/teacher/competitions/${id}`),
+    /** Messages the classmates who have not joined yet, once more. */
+    notifyCompetition: (id) => request('POST', `/teacher/competitions/${id}/notify`),
     startCompetition: (id) => request('POST', `/teacher/competitions/${id}/start`),
     closeCompetition: (id) => request('POST', `/teacher/competitions/${id}/close`),
     competitionResults: (id) => request('GET', `/teacher/competitions/${id}/results`),
+
+    // The record: every round one student of the class has played.
+    studentHistory: (groupId, studentId) =>
+      request('GET', `/teacher/groups/${groupId}/students/${studentId}/history`),
 
     // Billing — UT-08 / UT-08b
     plan: () => request('GET', '/teacher/plan'),
@@ -119,6 +126,7 @@ export const api = {
   deleteAccount: () => request('DELETE', '/me'),
 
   dashboard: () => request('GET', '/dashboard'),
+  history: () => request('GET', '/history'),
   coins: () => request('GET', '/coins'),
   streak: () => request('GET', '/streak'),
   notifications: () => request('GET', '/notifications'),

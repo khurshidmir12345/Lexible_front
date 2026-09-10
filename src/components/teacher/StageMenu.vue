@@ -5,23 +5,28 @@
  * by handing out the link.
  */
 import { ref } from 'vue'
+import CompetitionSetup from '../competition/CompetitionSetup.vue'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
 import { store } from '../../lib/store'
-import { telegram } from '../../lib/telegram'
 
 const props = defineProps({
   stage: { type: Object, required: true },
   /** Set when the menu is opened from inside a class. */
   groupId: { type: Number, default: null },
+  /** The exercises the path allows, for the game setup sheet. */
+  allowed: { type: Array, default: null },
 })
 
+/** `play` carries the lobby to open — a fresh one, or one the teacher left. */
 const emit = defineEmits(['close', 'edit', 'results', 'play', 'deleted'])
 
 const busy = ref(false)
+const setup = ref(false)
 const minWords = window.LEXIBLE?.minWords ?? 5
 
-async function play() {
+/** The game is set up (exercises, clock) on its own sheet before it opens. */
+function play() {
   if (!props.stage.words_count) {
     store.toast('Avval bosqichga soʼz qoʼshing')
     return
@@ -31,17 +36,7 @@ async function play() {
     return
   }
 
-  busy.value = true
-
-  try {
-    const { competition } = await api.teacher.openStageCompetition(props.stage.id, props.groupId)
-    telegram.notify('success')
-    emit('play', competition)
-  } catch (error) {
-    store.toast(error.message)
-  } finally {
-    busy.value = false
-  }
+  setup.value = true
 }
 
 async function remove() {
@@ -80,8 +75,8 @@ async function remove() {
           <button class="opt accent" :disabled="busy" @click="play">
             <span class="ic ink"><span class="t-vs">VS</span></span>
             <span class="txt">
-              <b>{{ busy ? 'Ochilmoqda…' : 'Oʼyin boshlash — havola' }}</b>
-              <i v-if="groupId">guruh oʼquvchilari havola orqali qoʼshiladi</i>
+              <b>Oʼyin boshlash</b>
+              <i v-if="groupId">guruh oʼquvchilariga botdan taklif boradi</i>
               <i v-else>guruhsiz ham: linkni tarqating, ishtirokchi yigʼing</i>
             </span>
             <span class="chev" v-html="TeacherIcon.chevron"></span>
@@ -105,6 +100,17 @@ async function remove() {
         <button class="btn btn-soft cancel" @click="emit('close')">Bekor</button>
       </div>
     </div>
+
+    <CompetitionSetup
+      v-if="setup"
+      :stage-id="stage.id"
+      :group-id="groupId"
+      :allowed="allowed"
+      :stage-label="`${stage.position}-bosqich · ${stage.title || 'Nomsiz'}`"
+      @close="setup = false"
+      @created="(c) => { setup = false; emit('play', c) }"
+      @resume="(c) => { setup = false; emit('play', c) }"
+    />
   </Teleport>
 </template>
 

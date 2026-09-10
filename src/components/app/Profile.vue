@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import LearnedWords from './LearnedWords.vue'
+import StudentHistory from '../teacher/StudentHistory.vue'
 import MyGroupsSheet from '../group/MyGroupsSheet.vue'
 import ReferralSheet from '../sheets/ReferralSheet.vue'
 import PremiumSheet from '../sheets/PremiumSheet.vue'
@@ -14,6 +15,7 @@ import { telegram } from '../../lib/telegram'
 const user = computed(() => store.state.user)
 
 const showLearned = ref(false)
+const showHistory = ref(false)
 const showGroups = ref(false)
 const sheet = ref(null)   // 'referral' | 'premium'
 const editing = ref(null)          // 'lang' | 'days' | 'time'
@@ -179,6 +181,12 @@ const daysLabel = computed(() => {
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
       </button>
 
+      <button class="v-row" @click="showHistory = true">
+        <span class="v-row-ic" v-html="RowIcon.chart ?? TeacherIcon.chart"></span>
+        <span class="v-row-t">Natijalar tarixi</span>
+        <span class="v-row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
       <!-- The ID a teacher adds the student by; a tap copies it. -->
       <button v-if="user.student_ref" class="v-row" @click="copyRef">
         <span class="v-row-ic" v-html="RowIcon.id"></span>
@@ -238,6 +246,7 @@ const daysLabel = computed(() => {
 
     <Teleport to="#lx-overlays">
       <LearnedWords v-if="showLearned" @close="showLearned = false" />
+      <StudentHistory v-if="showHistory" @close="showHistory = false" />
       <MyGroupsSheet v-if="showGroups" @close="showGroups = false" />
       <ReferralSheet v-if="sheet === 'referral'" @close="sheet = null" />
       <PremiumSheet v-if="sheet === 'premium'" @close="sheet = null" />

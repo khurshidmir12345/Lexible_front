@@ -338,6 +338,7 @@ defineExpose({ load })
     <StageMenu
       v-if="menuStage"
       :stage="menuStage"
+      :allowed="current?.types ?? null"
       @close="menuStage = null"
       @edit="(id) => { menuStage = null; emit('edit-stage', id) }"
       @play="(competition) => { menuStage = null; emit('competition', competition) }"
