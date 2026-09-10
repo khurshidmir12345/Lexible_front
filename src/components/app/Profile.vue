@@ -63,6 +63,13 @@ const toggleReminders = () => store.updateSettings({ reminders_enabled: !user.va
 /** The way back to the teacher side — App.vue swaps shells off `user.role`. */
 const switchingRole = ref(false)
 
+/** The student ID goes to the teacher, who searches for it in the class. */
+function copyRef() {
+  telegram.copy(user.value.student_ref)
+  telegram.haptic()
+  store.toast(`🔗 ${user.value.student_ref} nusxalandi — ustozingizga bering`)
+}
+
 async function becomeTeacher() {
   switchingRole.value = true
 
@@ -170,6 +177,14 @@ const daysLabel = computed(() => {
         <span class="v-row-t">Yodlangan soʼzlar</span>
         <span class="v-row-v">{{ user.words_learned }} ta</span>
         <span class="v-row-c" v-html="RowIcon.chevron"></span>
+      </button>
+
+      <!-- The ID a teacher adds the student by; a tap copies it. -->
+      <button v-if="user.student_ref" class="v-row" @click="copyRef">
+        <span class="v-row-ic" v-html="RowIcon.id"></span>
+        <span class="v-row-t">Mening ID raqamim</span>
+        <span class="v-row-v v-num">{{ user.student_ref }}</span>
+        <span class="v-row-c" v-html="TeacherIcon.copy"></span>
       </button>
 
       <button class="v-row" @click="showGroups = true">

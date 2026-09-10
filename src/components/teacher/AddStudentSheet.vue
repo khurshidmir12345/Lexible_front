@@ -80,10 +80,10 @@ function copyCode() {
         <h2>Oʼquvchi qoʼshish</h2>
 
         <div class="t-field block">
-          <span>ID YOKI ISM ORQALI QIDIRISH</span>
+          <span>OʼQUVCHI ID (PROFILIDA) YOKI ISM</span>
           <div class="search" :class="{ on: query.trim().length >= 2 }">
             <span class="ic" v-html="TeacherIcon.search"></span>
-            <input v-model="query" placeholder="7231" autocomplete="off" />
+            <input v-model="query" placeholder="ST-482913" autocomplete="off" />
           </div>
         </div>
 
@@ -97,7 +97,7 @@ function copyCode() {
           <span class="t-avatar">{{ student.initial }}</span>
           <span class="found-text">
             <b>{{ student.name }}</b>
-            <i>ID {{ student.telegram_id }}{{ student.level ? ` · ${student.level}` : '' }}</i>
+            <i>{{ student.ref ?? `ID ${student.telegram_id}` }}{{ student.level ? ` · ${student.level}` : '' }}</i>
           </span>
           <button
             class="add"
