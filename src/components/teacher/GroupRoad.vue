@@ -4,7 +4,7 @@
  * the class average instead of one student's progress. Tapping a card opens
  * UT-05.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { canvasHeight, connectors, layout, trinkets, INSET } from '../../lib/roadmap'
 import { TeacherIcon } from '../../lib/icons2'
 import { api } from '../../lib/api'
@@ -16,6 +16,16 @@ const emit = defineEmits(['close', 'stage'])
 
 const data = ref(null)
 const loading = ref(true)
+
+/** The "tap a card" hint shows once, briefly, then gets out of the map's way. */
+const hint = ref(false)
+let hintTimer = null
+function flashHint() {
+  hint.value = true
+  clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => (hint.value = false), 3500)
+}
+onBeforeUnmount(() => clearTimeout(hintTimer))
 
 const nodes = computed(() => layout(data.value?.stages ?? [], { top: 40 }))
 const links = computed(() => connectors(nodes.value))
@@ -32,6 +42,7 @@ async function load() {
 
   try {
     data.value = await api.teacher.groupRoad(props.groupId)
+    if (data.value?.stages?.length) flashHint()
   } catch (error) {
     store.toast(error.message)
     emit('close')
@@ -40,9 +51,11 @@ async function load() {
   }
 }
 
+/** The whole stage goes up: the menu needs its title and word count. */
 function open(stage) {
   telegram.haptic()
-  emit('stage', stage.id)
+  hint.value = false
+  emit('stage', stage)
 }
 
 onMounted(load)
@@ -114,10 +127,12 @@ onMounted(load)
         </template>
       </div>
 
-      <div class="hint">
-        <span v-html="TeacherIcon.info"></span>
-        <b>Bosqichni bosing — oʼquvchilar natijalari va oʼyin shu yerda ochiladi.</b>
-      </div>
+      <Transition name="hint">
+        <div v-if="hint" class="hint" @click="hint = false">
+          <span v-html="TeacherIcon.info"></span>
+          <b>Bosqichni bosing — lugʼat, natijalar va oʼyin shu yerda.</b>
+        </div>
+      </Transition>
     </div>
 
     <div v-else class="t-empty">
@@ -234,6 +249,9 @@ onMounted(load)
   border-radius: 14px;
   padding: 11px 14px;
 }
+
+.hint-enter-active, .hint-leave-active { transition: opacity .25s, transform .25s; }
+.hint-enter-from, .hint-leave-to { opacity: 0; transform: translateY(8px); }
 
 .hint > span { color: var(--green); display: grid; place-items: center; flex: none; }
 .hint b { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.4; }

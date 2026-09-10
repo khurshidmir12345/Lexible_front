@@ -344,7 +344,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.editor { background: var(--canvas); z-index: 20; }
+.editor { background: var(--canvas); z-index: 30; }   /* above the class map (22) it can open from */
 
 .flip { display: grid; place-items: center; transform: rotate(180deg); }
 

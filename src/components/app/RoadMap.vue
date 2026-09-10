@@ -112,7 +112,9 @@ function open(node) {
     store.toast(
       node.lock_reason === 'payment'
         ? '🔒 Bu yoʼl toʼlovdan soʼng ochiladi'
-        : '🔒 Avval oldingi bosqichni tugating',
+        : node.lock_reason === 'unwritten'
+          ? '🔒 Ustoz bu bosqichni hali toʼldirmagan'
+          : '🔒 Avval oldingi bosqichni tugating',
     )
     return
   }
@@ -134,8 +136,9 @@ const formatDate = (iso) => {
 }
 
 // An exam node never has a title — it must keep its IMTIHON face, not turn
-// into a "create a category" ghost.
-const isCreate = (node) => node.status !== 'locked' && !node.title && node.type !== 'exam'
+// into a "create a category" ghost. Nor does a teacher's stage: its words
+// are the teacher's to write, whatever it is called.
+const isCreate = (node) => node.status !== 'locked' && !node.title && node.type !== 'exam' && !node.from_group
 
 const canvasEl = ref(null)
 
@@ -248,6 +251,7 @@ watch(activePath, focusCurrent)
                 create: isCreate(node),
                 taught: node.from_group,
                 paywalled: node.lock_reason === 'payment',
+                ghost: node.placeholder,
               },
             ]"
             :style="style(node)"
@@ -266,7 +270,7 @@ watch(activePath, focusCurrent)
             <template v-else>
               <span class="head">
                 <b class="v-num">{{ node.position }}</b>
-                <i>{{ formatDate(node.date) }}</i>
+                <i>{{ node.placeholder ? '' : formatDate(node.date) }}</i>
               </span>
 
               <!-- A finished node says so once, in the pill at the foot of
@@ -286,6 +290,7 @@ watch(activePath, focusCurrent)
               <span v-if="node.type === 'exam'" class="tag">
                 IMTIHON{{ node.status === 'completed' ? ' ✓' : '' }}
               </span>
+              <span v-else-if="node.placeholder" class="tag ghost-tag">TEZ KUNDA</span>
               <span v-else-if="node.status === 'completed'" class="pill">✓ BAJARILDI</span>
               <span v-else-if="node.status === 'in_progress'" class="v-pct v-num">{{ node.progress }}%</span>
             </template>
@@ -432,6 +437,28 @@ watch(activePath, focusCurrent)
   box-shadow: 0 5px 0 var(--gold-deep);
   color: #6B4E00;
 }
+
+/* A lesson the teacher has written but the class has not reached: shut,
+   yet in the path's gold so it reads as real, not as an empty slot. */
+.node.taught.locked {
+  background: linear-gradient(165deg, #F3DFA6, #E2C270);
+  box-shadow: 0 5px 0 #C9A653;
+  color: #6B4E00;
+}
+
+/* A stage the teacher has not filled yet: colourless, so the road keeps
+   its length without pretending there is a lesson there. */
+.node.taught.locked.ghost {
+  background: var(--card);
+  border: 1.5px dashed #C8D0C8;
+  box-shadow: none;
+  color: #98A49C;
+}
+
+.node.taught.locked.ghost .ring { background: #EEF2EE; }
+.ghost-tag { color: #98A49C; }
+.app.dark .node.taught.locked.ghost { background: #1B211C; border-color: #313D34; color: #66736B; }
+.app.dark .node.taught.locked.ghost .ring { background: #26302A; }
 
 .path-add {
   width: 30px;

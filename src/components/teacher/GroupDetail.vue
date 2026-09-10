@@ -8,6 +8,8 @@ import { computed, onMounted, ref } from 'vue'
 import Modal from '../ui/Modal.vue'
 import AddStudentSheet from './AddStudentSheet.vue'
 import GroupRoad from './GroupRoad.vue'
+import StageMenu from './StageMenu.vue'
+import StageEditor from './StageEditor.vue'
 import StageResults from './StageResults.vue'
 import CompetitionLobby from '../competition/CompetitionLobby.vue'
 import { TeacherIcon } from '../../lib/icons2'
@@ -28,6 +30,22 @@ const adding = ref(false)
 const menu = ref(false)
 const showRoad = ref(false)
 const resultsStage = ref(null)
+/** UT-MD2 over the class map: the tapped stage, with words_count the menu reads. */
+const menuStage = ref(null)
+const editingStage = ref(null)
+// Bumped after an edit so the map behind re-reads its word counts.
+const roadKey = ref(0)
+
+function openStageMenu(stage) {
+  menuStage.value = { ...stage, words_count: stage.words ?? stage.words_count ?? 0 }
+}
+
+function stageSaved() {
+  editingStage.value = null
+  roadKey.value++
+  load()
+  emit('changed')
+}
 const lobby = ref(null)
 const draft = ref({ title: '', subtitle: '', badge: '' })
 
@@ -310,9 +328,29 @@ onMounted(load)
     <!-- Deeper screens -->
     <GroupRoad
       v-if="showRoad"
+      :key="roadKey"
       :group-id="groupId"
       @close="showRoad = false"
-      @stage="(id) => { showRoad = false; resultsStage = id }"
+      @stage="openStageMenu"
+    />
+
+    <!-- Tapping a card on the class map: edit its words, run a game, or read results. -->
+    <StageMenu
+      v-if="menuStage"
+      :stage="menuStage"
+      :group-id="groupId"
+      @close="menuStage = null"
+      @edit="(id) => { menuStage = null; editingStage = id }"
+      @results="(id) => { menuStage = null; showRoad = false; resultsStage = id }"
+      @play="(c) => { menuStage = null; showRoad = false; lobby = c }"
+      @deleted="() => { menuStage = null; roadKey++; load(); emit('changed') }"
+    />
+
+    <StageEditor
+      v-if="editingStage"
+      :stage-id="editingStage"
+      @close="editingStage = null"
+      @saved="stageSaved"
     />
 
     <StageResults
