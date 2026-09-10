@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Dashboard from './Dashboard.vue'
 import RoadMap from './RoadMap.vue'
 import Profile from './Profile.vue'
@@ -22,7 +22,8 @@ const examRun = ref(null)
 const duelCode = ref(null)
 const competitionCode = ref(null)
 const showingNotifications = ref(false)
-const unread = ref(0)
+/** Kept in the store: the live heartbeat updates it while the app is open. */
+const unread = computed(() => store.state.unread)
 
 const TABS = [
   { key: 'dash', label: 'Bosh', icon: NavIcon.home },
@@ -98,19 +99,13 @@ async function acceptInvite() {
   }
 }
 
-async function checkBell() {
-  try {
-    unread.value = (await api.notifications()).unread
-  } catch {
-    /* the bell is not worth an error message */
-  }
-}
-
 onMounted(() => {
   store.refreshDashboard().catch(() => {})
   acceptInvite()
-  checkBell()
+  // The first pulse also fills the bell.
+  store.startLive()
 })
+onBeforeUnmount(() => store.stopLive())
 
 // The home tab shows counters a finished round changes.
 watch(tab, (next) => {
@@ -189,7 +184,7 @@ watch(tab, (next) => {
     <Notifications
       v-if="showingNotifications"
       @close="showingNotifications = false"
-      @read="unread = 0"
+      @read="store.markNotificationsRead()"
     />
   </div>
 </template>

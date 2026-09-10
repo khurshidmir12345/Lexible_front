@@ -106,6 +106,22 @@ export const telegram = {
 
   colorScheme: tg?.colorScheme ?? 'light',
 
+  /**
+   * Fires when the Mini App comes back to the foreground — Telegram's own
+   * event (Bot API 8.0) plus the page's visibility change, so it works on
+   * every client. Returns a function that unhooks both.
+   */
+  onResume(handler) {
+    const onVisible = () => { if (document.visibilityState === 'visible') handler() }
+    document.addEventListener('visibilitychange', onVisible)
+    tg?.onEvent?.('activated', handler)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      tg?.offEvent?.('activated', handler)
+    }
+  },
+
   haptic(style = 'light') {
     tg?.HapticFeedback?.impactOccurred?.(style)
   },

@@ -48,6 +48,8 @@ export const api = {
   joinGroup: (code, groupId = null) =>
     request('POST', '/groups/join', { code, ...(groupId ? { group_id: groupId } : {}) }),
   myGroups: () => request('GET', '/groups/mine'),
+  /** Cheap heartbeat: a fingerprint of the road plus the unread count. */
+  pulse: () => request('GET', '/pulse'),
   leaveGroup: (id) => request('DELETE', `/groups/${id}/leave`),
   /** The board as a picture; `mode: 'chat'` has the bot send it to the player instead. */
   shareCompetition: (code, mode = 'share') => request('POST', `/competitions/${code}/share`, { mode }),

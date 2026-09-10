@@ -12,12 +12,21 @@ const state = reactive({
   groups: [],
   activePath: 'personal',
   dashboard: null,
+  unread: 0,
 
   toast: null,
   dark: false,
 })
 
 let toastTimer = null
+
+/* --------------------------------------------------------------- live sync */
+
+const PULSE_MS = 20_000
+let pulseTimer = null
+let pulseSeen = null
+let pulseBusy = false
+let unhookResume = null
 
 export const store = {
   state: readonly(state),
@@ -86,6 +95,54 @@ export const store = {
 
   selectPath(id) {
     state.activePath = id
+  },
+
+  /**
+   * Keeps the open app in step with what happens elsewhere — a teacher
+   * adding this player to a class, opening a lesson, a friend finishing a
+   * duel. One tiny request every twenty seconds while the app is on screen,
+   * an immediate one whenever it comes back to the foreground; the road is
+   * only re-read when the fingerprint says it changed.
+   */
+  startLive() {
+    if (pulseTimer) return
+
+    const tick = () => this.pulse().catch(() => {})
+    pulseTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') tick()
+    }, PULSE_MS)
+    unhookResume = telegram.onResume(tick)
+    tick()
+  },
+
+  stopLive() {
+    clearInterval(pulseTimer)
+    pulseTimer = null
+    unhookResume?.()
+    unhookResume = null
+  },
+
+  async pulse() {
+    if (pulseBusy || !state.user?.onboarded) return
+    pulseBusy = true
+
+    try {
+      const { road, unread } = await api.pulse()
+      state.unread = unread
+
+      if (pulseSeen !== null && road !== pulseSeen) {
+        await Promise.all([this.refreshRoad(), this.refreshGroups()])
+        this.refreshDashboard().catch(() => {})
+      }
+      pulseSeen = road
+    } finally {
+      pulseBusy = false
+    }
+  },
+
+  /** The bell was opened: the badge clears at once, the server already agreed. */
+  markNotificationsRead() {
+    state.unread = 0
   },
 
   async refreshDashboard() {
