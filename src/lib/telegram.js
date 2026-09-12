@@ -4,6 +4,8 @@
  * Everything degrades to a no-op outside Telegram so the app can still be
  * opened in a plain browser during development.
  */
+import { ref } from 'vue'
+
 const tg = window.Telegram?.WebApp ?? null
 
 const platform = tg?.platform ?? 'unknown'
@@ -27,8 +29,14 @@ function syncInsets() {
   root.setProperty('--lx-safe-bottom', `${safe.bottom ?? 0}px`)
 }
 
+/** Mirrors `tg.isFullscreen` so components can react to it (the "whole screen" button). */
+const fullscreenOn = ref(Boolean(tg?.isFullscreen))
+let fullscreenUnsupported = false
+let fullscreenTimer = null
+
 export const telegram = {
   available: Boolean(tg?.initData),
+  fullscreenOn,
 
   platform,
   isPhone: onPhone,
@@ -41,7 +49,16 @@ export const telegram = {
     tg.expand()
     tg.disableVerticalSwipes?.()      // stops the pull-to-close gesture eating swipes
 
-    tg.onEvent?.('fullscreenChanged', syncInsets)
+    tg.onEvent?.('fullscreenChanged', () => {
+      fullscreenOn.value = Boolean(tg.isFullscreen)
+      syncInsets()
+    })
+    tg.onEvent?.('fullscreenFailed', (e) => {
+      // 'UNSUPPORTED' means this client will never do it — stop asking.
+      // 'ALREADY_FULLSCREEN' just means our mirror lagged behind.
+      if (e?.error === 'UNSUPPORTED') fullscreenUnsupported = true
+      if (e?.error === 'ALREADY_FULLSCREEN') fullscreenOn.value = true
+    })
     tg.onEvent?.('safeAreaChanged', syncInsets)
     tg.onEvent?.('contentSafeAreaChanged', syncInsets)
 
@@ -58,15 +75,34 @@ export const telegram = {
     this.paint(false)
   },
 
+  /** Whether this client can go fullscreen at all (Bot API 8.0+, not refused). */
+  get canFullscreen() {
+    return Boolean(tg?.isVersionAtLeast?.('8.0') && tg.requestFullscreen) && !fullscreenUnsupported
+  },
+
   /**
    * Called at init on phones, and by App.vue on desktop once the account
    * turns out to be a teacher — the desk layout wants the whole monitor,
    * while a student's phone-shaped column doesn't. Older clients fire
    * fullscreenFailed and simply stay expanded.
+   *
+   * Telegram Desktop drops a request that arrives while its window is still
+   * opening or animating — the teacher then sits in a phone-sized window
+   * parked at the screen edge. So one request is not enough: it is repeated
+   * a few times until the client reports fullscreen, and App.vue asks again
+   * whenever the app comes back to the foreground.
    */
-  fullscreen() {
-    if (!tg?.isVersionAtLeast?.('8.0') || tg.isFullscreen) return
-    try { tg.requestFullscreen?.() } catch { /* stays expanded */ }
+  fullscreen({ retries = 5 } = {}) {
+    clearTimeout(fullscreenTimer)
+    if (!this.canFullscreen || tg.isFullscreen) {
+      fullscreenOn.value = Boolean(tg?.isFullscreen)
+      return
+    }
+    try { tg.requestFullscreen() } catch { /* stays expanded */ }
+
+    if (retries > 0) {
+      fullscreenTimer = setTimeout(() => this.fullscreen({ retries: retries - 1 }), 600)
+    }
   },
 
   /** Keeps Telegram's own chrome in step with the app's theme. */

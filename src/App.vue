@@ -29,7 +29,11 @@ const desk = computed(() => isTeacher.value && telegram.isDesktop)
 
 // Phones go fullscreen at init; a desktop window only does once the account
 // turns out to be a teacher's, so a student's PC keeps the small window.
+// Telegram Desktop sometimes ignores the request (window still opening,
+// or the teacher left fullscreen by hand and came back), so it is repeated
+// every time the app returns to the foreground.
 watch(desk, (on) => on && telegram.fullscreen(), { immediate: true })
+telegram.onResume(() => desk.value && telegram.fullscreen({ retries: 2 }))
 
 onMounted(() => store.boot())
 </script>

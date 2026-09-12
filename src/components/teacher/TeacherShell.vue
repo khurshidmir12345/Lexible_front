@@ -25,6 +25,8 @@ import { telegram } from '../../lib/telegram'
 
 const tab = ref('dash')
 
+const fullscreenIcon = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>`
+
 const openGroupId = ref(null)
 const openStageId = ref(null)
 const lobby = ref(null)
@@ -126,6 +128,16 @@ watch(tab, (next) => {
 
       <div class="head-actions">
         <span class="role-chip">USTOZ</span>
+        <!-- Desktop only: a hand-made request is the one Telegram Desktop never drops. -->
+        <button
+          v-if="telegram.isDesktop && telegram.canFullscreen && !telegram.fullscreenOn.value"
+          class="icon-btn"
+          aria-label="Butun ekran"
+          title="Butun ekran"
+          @click="telegram.fullscreen()"
+        >
+          <span v-html="fullscreenIcon"></span>
+        </button>
         <button class="icon-btn" aria-label="Bildirishnomalar" @click="showNotifications = true">
           <span v-html="TeacherIcon.bell"></span>
           <span v-if="unread" class="v-dot"></span>
