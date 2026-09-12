@@ -151,7 +151,11 @@ export const telegram = {
    */
   miniAppLink(startParam) {
     const bot = window.LEXIBLE?.botUsername ?? 'Bayoz_app_bot'
-    return `https://t.me/${bot}?startapp=${startParam}`
+    // Until the Main Mini App is enabled in BotFather a `startapp` link only
+    // opens the chat; `start` reaches the bot, which answers with a button
+    // that carries the parameter into the game (see MiniAppLink.php).
+    const key = window.LEXIBLE?.mainWebApp === false ? 'start' : 'startapp'
+    return `https://t.me/${bot}?${key}=${startParam}`
   },
 
   /** Bot API 8.0 — a prepared message can be dropped into any chat from inside the app. */
