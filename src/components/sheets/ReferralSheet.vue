@@ -15,7 +15,7 @@ function copy() {
 }
 
 function share() {
-  telegram.share(link.value, 'Lexible — ingliz tili soʼzlarini oʼyin orqali yodlang')
+  telegram.share(link.value, 'Bayoz — ingliz tili soʼzlarini oʼyin orqali yodlang')
 }
 </script>
 

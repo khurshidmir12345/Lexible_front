@@ -5,7 +5,7 @@ import RolePicker from './components/onboarding/RolePicker.vue'
 import AppShell from './components/app/AppShell.vue'
 import TeacherShell from './components/teacher/TeacherShell.vue'
 import Toast from './components/ui/Toast.vue'
-import Mascot from './components/ui/Mascot.vue'
+import bayozLogo from './assets/bayoz-logo.png'
 import { store } from './lib/store'
 import { telegram } from './lib/telegram'
 
@@ -45,8 +45,7 @@ onMounted(() => store.boot())
 
     <!-- Booting -->
     <div v-if="!store.state.ready" class="splash">
-      <Mascot />
-      <div class="mark">Lexible<b>.</b></div>
+      <img class="splash-logo" :src="bayozLogo" alt="Bayoz" width="512" height="512" />
     </div>
 
     <!-- Could not reach the backend -->
@@ -83,16 +82,16 @@ onMounted(() => store.boot())
   background: var(--card);
 }
 
-.mark {
-  font-family: 'Sora', sans-serif;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  margin-top: 14px;
+.splash-logo {
+  width: min(62vw, 240px);
+  height: auto;
+  border-radius: 24px;
+  animation: splash-bob 3.4s ease-in-out infinite;
 }
 
-.mark b {
-  color: var(--green);
+@keyframes splash-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.02); }
 }
 
 .sad {

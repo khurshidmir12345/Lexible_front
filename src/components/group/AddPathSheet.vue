@@ -47,7 +47,7 @@ async function submit(groupId = null) {
 function invite() {
   telegram.share(
     telegram.miniAppLink(`ref_${store.state.user?.telegram_id}`),
-    'Lexible — ingliz tili soʼzlarini oʼyin orqali yodlang',
+    'Bayoz — ingliz tili soʼzlarini oʼyin orqali yodlang',
   )
 }
 </script>

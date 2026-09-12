@@ -51,7 +51,7 @@
 
     /* The rail earns a wordmark — the phone layout never had room for one. */
     .app.desk .t-shell > .bottom-nav::before {
-        content: 'Lexible.';
+        content: 'Bayoz.';
         font-family: 'Sora', system-ui, sans-serif;
         font-size: 21px;
         font-weight: 700;

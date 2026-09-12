@@ -150,7 +150,7 @@ export const telegram = {
    * app and, finding none, opens the chat instead of the game.
    */
   miniAppLink(startParam) {
-    const bot = window.LEXIBLE?.botUsername ?? 'lexible_test_bot'
+    const bot = window.LEXIBLE?.botUsername ?? 'Bayoz_app_bot'
     return `https://t.me/${bot}?startapp=${startParam}`
   },
 

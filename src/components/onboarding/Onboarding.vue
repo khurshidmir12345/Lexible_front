@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import bayozLogo from '../../assets/bayoz-logo.png'
 import treasureMap from '../../assets/treasure-map.webp'
 import { StepIcon, backIcon } from '../../lib/icons2'
 import { GOALS, LANGUAGES, LEVELS, TIMES, WEEKDAYS } from '../../lib/languages'
@@ -134,7 +135,7 @@ async function finish() {
         <span>hello</span>
         <span class="alt">salom</span>
       </div>
-      <div class="ob-wordmark">Lexible<b>.</b></div>
+      <img class="ob-logo" :src="bayozLogo" alt="Bayoz" width="512" height="512" />
 
       <!-- The map is what the app actually is, so it gets the free space:
            it grows on a tall phone and shrinks rather than pushing the
@@ -743,16 +744,11 @@ async function finish() {
   color: var(--green-dark);
 }
 
-.ob-wordmark {
-  font-family: 'Sora', sans-serif;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  margin-bottom: 10px;
-}
-
-.ob-wordmark b {
-  color: var(--green);
+.ob-logo {
+  width: min(48vw, 190px);
+  height: auto;
+  margin: 0 auto 6px;
+  border-radius: 20px;
 }
 
 .done-mark {

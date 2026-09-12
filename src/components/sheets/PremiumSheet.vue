@@ -15,7 +15,7 @@ const perks = [
   <div class="dialog-wrap open">
     <div class="dialog">
       <div class="crest">✦</div>
-      <h2>Lexible Premium</h2>
+      <h2>Bayoz Premium</h2>
 
       <div class="perks">
         <div v-for="[emoji, label] in perks" :key="label" class="perk">

@@ -228,7 +228,7 @@ const daysLabel = computed(() => {
     <button class="premium" @click="sheet = 'premium'">
       <span class="premium-ic" v-html="RowIcon.spark"></span>
       <span style="flex: 1; text-align: left">
-        <b>Lexible Premium</b>
+        <b>Bayoz Premium</b>
         <i>AI talaffuz · cheksiz soʼzlar</i>
       </span>
       <span class="v-row-c" style="color: rgba(255,255,255,.6)" v-html="RowIcon.chevron"></span>
