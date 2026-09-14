@@ -1,6 +1,4 @@
 <script setup>
-import { store } from '../../lib/store'
-
 defineEmits(['close'])
 
 const perks = [
@@ -23,18 +21,12 @@ const perks = [
         </div>
       </div>
 
-      <div class="price">
-        <b>19 000 soʼm</b><i>/ oy</i>
+      <div class="mvp-note">
+        <b>🚧 Ilova hozir MVP (sinov) holatida ishlamoqda</b>
+        <span>Obuna tez orada joriy qilinadi. Hozircha barcha imkoniyatlar bepul — tangalar bilan ham ochiladi.</span>
       </div>
 
-      <p class="free-note">
-        Tangalar bilan ham ochiladi — 300 tanga yigʼsangiz 3 kun bepul.
-      </p>
-
-      <button class="btn btn-primary" @click="store.toast('Toʼlov tizimi keyingi bosqichda')">
-        Premium olish
-      </button>
-      <button class="btn btn-ghost" @click="$emit('close')">Keyinroq</button>
+      <button class="btn btn-primary" @click="$emit('close')">Tushunarli</button>
     </div>
   </div>
 </template>
@@ -79,10 +71,14 @@ h2 {
 .price b { font-family: 'Sora', sans-serif; font-size: 24px; font-weight: 700; }
 .price i { font-style: normal; font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, .6); margin-left: 5px; }
 
-.free-note {
-  font-size: 11.5px; font-weight: 600;
-  color: rgba(255, 255, 255, .55); margin: 10px 0 16px;
+.mvp-note {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 18px 0 16px; padding: 13px 14px;
+  border-radius: 14px; text-align: left;
+  background: rgba(255, 196, 61, .14);
+  border: 1px solid rgba(255, 196, 61, .35);
 }
 
-.btn-ghost { color: rgba(255, 255, 255, .6); }
+.mvp-note b { font-size: 13.5px; color: var(--gold-mid); }
+.mvp-note span { font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, .8); line-height: 1.45; }
 </style>

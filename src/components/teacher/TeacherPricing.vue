@@ -59,22 +59,15 @@ async function switchTab(mode) {
   }
 }
 
-async function choose(seats) {
-  busy.value = true
+/**
+ * MVP: plans are shown but not sold yet. The request endpoint stays in the
+ * API for the day billing switches on; until then a tap only explains.
+ */
+const MVP_NOTICE = '🚧 Ilova hozir MVP holatida — obuna tez orada joriy qilinadi'
 
-  try {
-    const result = (await api.teacher.choosePlan(seats)).plan
-    plan.value = result
-    store.toast(
-      result.status === 'pending'
-        ? '⏳ Toʼlov kutilmoqda — tez orada bogʼlanamiz'
-        : '✅ Tarif yangilandi',
-    )
-  } catch (error) {
-    store.toast(error.message)
-  } finally {
-    busy.value = false
-  }
+function choose() {
+  telegram.haptic()
+  store.toast(MVP_NOTICE)
 }
 
 async function remind() {
@@ -106,6 +99,11 @@ onMounted(load)
       <p v-if="loading" class="t-loading">Yuklanmoqda…</p>
 
       <template v-else-if="plan">
+        <div class="mvp-banner">
+          <b>🚧 Ilova hozir MVP (sinov) holatida ishlamoqda</b>
+          <span>Obuna tez orada joriy qilinadi — hozircha barcha imkoniyatlar bepul.</span>
+        </div>
+
         <div class="tabs">
           <button :class="{ on: tab === 'teacher' }" @click="switchTab('teacher')">Ustoz toʼlaydi</button>
           <button :class="{ on: tab === 'student' }" @click="switchTab('student')">Oʼquvchi toʼlaydi</button>
@@ -211,8 +209,8 @@ onMounted(load)
         </template>
 
         <p class="disclaimer">
-          Toʼlov tizimi hali ulanmagan — tarif tanlanganda soʼrov qayd etiladi va siz bilan
-          bogʼlanamiz.
+          Ilova hozir MVP (sinov) holatida ishlamoqda — barcha imkoniyatlar bepul. Obuna va
+          toʼlov tez orada joriy qilinadi.
         </p>
       </template>
     </div>
@@ -390,6 +388,17 @@ onMounted(load)
   font-weight: 700;
   color: rgba(255, 255, 255, .55);
 }
+
+.mvp-banner {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 16px; padding: 13px 15px;
+  border-radius: var(--r-md);
+  background: var(--gold-soft, #FFF4D6);
+  border: 1px solid var(--gold-mid, #E5B53A);
+}
+
+.mvp-banner b { font-size: 14px; color: var(--ink); }
+.mvp-banner span { font-size: 12.5px; font-weight: 600; color: var(--ink-2, var(--ink)); line-height: 1.45; }
 
 .disclaimer {
   font-size: 11.5px;
